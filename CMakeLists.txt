@@ -47,6 +47,8 @@ set(SOURCE_FILES
         src/vulkan/vk_exception.cpp
         src/vulkan/vkb_raii.h
         src/vulkan/vkb_raii.cpp
+        src/vulkan/surface.h
+        src/vulkan/surface.cpp
 )
 
 foreach (GLSL ${GLSL_SOURCE_FILES})

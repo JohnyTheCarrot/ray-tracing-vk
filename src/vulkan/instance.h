@@ -9,8 +9,6 @@ using VkInstance = VkInstance_T *;
 
 namespace raytracing::vulkan {
 	class VkInstanceDestroyer final {
-
-
 	public:
 		void operator()(VkInstance instance) const;
 	};
@@ -18,14 +16,19 @@ namespace raytracing::vulkan {
 	using UniqueVkInstance = std::unique_ptr<VkInstance_T, VkInstanceDestroyer>;
 
 	class Instance final {
-		UniqueVkInstance m_Instance{nullptr};
-		bool             m_EnableValidationLayers{false};
+		UniqueVkInstance instance_{nullptr};
+		bool             enable_validation_layers_{false};
 
 		[[nodiscard]]
-		static bool CheckValidationLayerSupport();
+		static bool check_validation_layer_support();
 
 	public:
-		Instance(std::string_view applicationName, std::string_view engineName, bool enableValidationLayers = false);
+		Instance(
+		        std::string_view application_name, std::string_view engine_name, bool enable_validation_layers = false
+		);
+
+		[[nodiscard]]
+		VkInstance get() const noexcept;
 	};
 }// namespace raytracing::vulkan
 

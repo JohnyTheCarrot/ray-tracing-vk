@@ -28,9 +28,9 @@ namespace raytracing {
 		std::ofstream m_File{"log.txt"};
 
 	public:
-		void Log(LogLevel level, std::string_view message);
+		void log(LogLevel level, std::string_view message);
 
-		void Log(std::string_view message);
+		void log(std::string_view message);
 
 		Logger();
 	};

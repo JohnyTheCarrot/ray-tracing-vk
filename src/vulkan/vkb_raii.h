@@ -1,3 +1,6 @@
+#ifndef VKB_RAII
+#define VKB_RAII
+
 #include <VkBootstrap.h>
 #include <concepts>
 #include <optional>
@@ -64,8 +67,8 @@ namespace raytracing {
 			return m_Value;
 		}
 
-		V &operator->() {
-			return m_Value;
+		V *operator->() {
+			return &m_Value.value();
 		}
 	};
 
@@ -76,3 +79,4 @@ namespace raytracing {
 
 	using UniqueVkbInstance = UniqueContainer<vkb::Instance, VkbInstanceDestroyer>;
 }// namespace raytracing
+#endif

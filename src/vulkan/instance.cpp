@@ -11,11 +11,11 @@ namespace raytracing::vulkan {
 	std::vector const validationLayers = {"VK_LAYER_KHRONOS_validation"};
 
 	void VkInstanceDestroyer::operator()(VkInstance instance) const {
-		Logger::get_instance().Log(LogLevel::Debug, "Destroying Vulkan instance");
+		Logger::get_instance().log(LogLevel::Debug, "Destroying Vulkan instance");
 		vkDestroyInstance(instance, nullptr);
 	}
 
-	bool Instance::CheckValidationLayerSupport() {
+	bool Instance::check_validation_layer_support() {
 		std::uint32_t layerCount{0};
 		vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -29,41 +29,45 @@ namespace raytracing::vulkan {
 		});
 	}
 
-	Instance::Instance(std::string_view applicationName, std::string_view engineName, bool enableValidationLayers) {
-		if (enableValidationLayers && !CheckValidationLayerSupport()) {
+	Instance::Instance(std::string_view application_name, std::string_view engine_name, bool enable_validation_layers) {
+		if (enable_validation_layers && !check_validation_layer_support()) {
 			throw std::runtime_error{"Validation layers requested, but not available."};
 		}
 
 		VkApplicationInfo applicationInfo{};
 		applicationInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		applicationInfo.pApplicationName   = applicationName.data();
+		applicationInfo.pApplicationName   = application_name.data();
 		applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-		applicationInfo.pEngineName        = engineName.data();
+		applicationInfo.pEngineName        = engine_name.data();
 		applicationInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
 		applicationInfo.apiVersion         = VK_API_VERSION_1_0;
 
-		VkInstanceCreateInfo instanceCreateInfo{};
-		instanceCreateInfo.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		instanceCreateInfo.pApplicationInfo = &applicationInfo;
+		VkInstanceCreateInfo instance_create_info{};
+		instance_create_info.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+		instance_create_info.pApplicationInfo = &applicationInfo;
 
-		std::uint32_t glfwExtensionCount{0};
-		char const  **glfwExtensions{glfwGetRequiredInstanceExtensions(&glfwExtensionCount)};
-		instanceCreateInfo.enabledExtensionCount   = glfwExtensionCount;
-		instanceCreateInfo.ppEnabledExtensionNames = glfwExtensions;
+		std::uint32_t glfw_extension_count{0};
+		char const  **glfw_extensions{glfwGetRequiredInstanceExtensions(&glfw_extension_count)};
+		instance_create_info.enabledExtensionCount   = glfw_extension_count;
+		instance_create_info.ppEnabledExtensionNames = glfw_extensions;
 
-		if (enableValidationLayers) {
-			instanceCreateInfo.enabledLayerCount   = static_cast<std::uint32_t>(validationLayers.size());
-			instanceCreateInfo.ppEnabledLayerNames = validationLayers.data();
+		if (enable_validation_layers) {
+			instance_create_info.enabledLayerCount   = static_cast<std::uint32_t>(validationLayers.size());
+			instance_create_info.ppEnabledLayerNames = validationLayers.data();
 		} else {
-			instanceCreateInfo.enabledLayerCount = 0;
+			instance_create_info.enabledLayerCount = 0;
 		}
 
 		VkInstance instance{nullptr};
-		Logger::get_instance().Log(LogLevel::Debug, "Creating Vulkan instance");
-		if (VkResult const result{vkCreateInstance(&instanceCreateInfo, nullptr, &instance)}; result != VK_SUCCESS) {
+		Logger::get_instance().log(LogLevel::Debug, "Creating Vulkan instance");
+		if (VkResult const result{vkCreateInstance(&instance_create_info, nullptr, &instance)}; result != VK_SUCCESS) {
 			throw VkException{"Failed to create Vulkan instance", result};
 		}
 
-		m_Instance.reset(instance);
+		instance_.reset(instance);
+	}
+
+	VkInstance Instance::get() const noexcept {
+		return instance_.get();
 	}
 }// namespace raytracing::vulkan

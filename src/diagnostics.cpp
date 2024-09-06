@@ -5,14 +5,14 @@
 #include <string_view>
 
 namespace raytracing {
-	void Logger::Log(LogLevel level, std::string_view message) {
+	void Logger::log(LogLevel level, std::string_view message) {
 		auto const levelAsString{LogLevelToString(level)};
 		auto const completeMessage{std::format("[{}] {}", levelAsString, message)};
 
-		Log(message);
+		log(message);
 	}
 
-	void Logger::Log(std::string_view message) {
+	void Logger::log(std::string_view message) {
 		m_File << message << '\n';
 		std::cout << message << std::endl;
 	}
