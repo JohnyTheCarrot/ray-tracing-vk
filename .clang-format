@@ -53,7 +53,7 @@ NamespaceIndentation: All
 ObjCSpaceAfterProperty: false
 ObjCSpaceBeforeProtocolList: true
 PointerAlignment: Right
-QualifierAlignment: Left
+QualifierAlignment: Right
 ReferenceAlignment: Right
 ReflowComments: false
 SeparateDefinitionBlocks: Always

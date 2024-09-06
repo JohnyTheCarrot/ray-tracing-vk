@@ -2,26 +2,26 @@
 #define SINGLETON_H
 
 namespace raytracing::engine {
-    template<typename T>
-    class Singleton {
-    public:
-        static T &GetInstance() {
-            static T instance{};
-            return instance;
-        }
+	template<typename T>
+	class Singleton {
+	public:
+		static T &get_instance() {
+			static T instance{};
+			return instance;
+		}
 
-        virtual ~Singleton() = default;
+		virtual ~Singleton() = default;
 
-        Singleton(const Singleton &other) = delete;
+		Singleton(Singleton const &other) = delete;
 
-        Singleton(Singleton &&other) = delete;
+		Singleton(Singleton &&other) = delete;
 
-        Singleton &operator=(const Singleton &other) = delete;
+		Singleton &operator=(Singleton const &other) = delete;
 
-        Singleton &operator=(Singleton &&other) = delete;
+		Singleton &operator=(Singleton &&other) = delete;
 
-    protected:
-        Singleton() = default;
-    };
-}// namespace roing::engine
+	protected:
+		Singleton() = default;
+	};
+}// namespace raytracing::engine
 #endif// SINGLETON_H

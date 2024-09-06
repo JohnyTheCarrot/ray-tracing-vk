@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.29)
+cmake_minimum_required(VERSION 3.27)
 project(raytracing)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -14,17 +14,40 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(glfw)
 
+FetchContent_Declare(
+    fetch_vk_bootstrap
+    GIT_REPOSITORY https://github.com/charles-lunarg/vk-bootstrap
+    GIT_TAG        v1.3.295 #suggest using a tag so the library doesn't update whenever new commits are pushed to a branch
+)
+FetchContent_MakeAvailable(fetch_vk_bootstrap)
+
 # Find the required packages
 find_package(Vulkan REQUIRED)
 
-link_libraries(-fsanitize=address)
-add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+#link_libraries(-fsanitize=address)
+#add_compile_options(-fsanitize=address -fno-omit-frame-pointer -g)
 
 include_directories(${Vulkan_INCLUDE_DIRS})
 
 set(SHADER_SOURCE_DIR "shaders")
 set(SHADER_BINARY_DIR "shaders")
 set(GLSL_SOURCE_FILES "")
+
+set(SOURCE_FILES
+        src/main.cpp
+        src/window.h
+        src/diagnostics.h
+        src/diagnostics.cpp
+        src/Singleton.h
+        src/window.cpp
+        src/vulkan/instance.h
+        src/vulkan/instance.cpp
+        src/vulkan/vma.cpp
+        src/vulkan/vk_exception.h
+        src/vulkan/vk_exception.cpp
+        src/vulkan/vkb_raii.h
+        src/vulkan/vkb_raii.cpp
+)
 
 foreach (GLSL ${GLSL_SOURCE_FILES})
     get_filename_component(FILE_NAME ${GLSL} NAME)
@@ -55,7 +78,7 @@ if (NOT glm_POPULATED)
     FetchContent_Populate(glm)
 endif ()
 
-add_executable(${PROJECT_NAME} main.cpp ${GLSL_SOURCE_FILES})
+add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${GLSL_SOURCE_FILES})
 
 add_custom_command(
         TARGET ${PROJECT_NAME} POST_BUILD
@@ -67,4 +90,7 @@ add_dependencies(${PROJECT_NAME} Shaders)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${glm_SOURCE_DIR})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES} glfw)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES} glfw vk-bootstrap::vk-bootstrap)
+ 
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+target_link_libraries(${PROJECT_NAME} PRIVATE GPUOpen::VulkanMemoryAllocator)

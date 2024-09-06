@@ -1,20 +1,20 @@
 #include "diagnostics.h"
 
 #include <format>
-#include <fstream>
 #include <iostream>
+#include <string_view>
 
 namespace raytracing {
 	void Logger::Log(LogLevel level, std::string_view message) {
-		const auto completeMessage{std::format("[{}] {}", LogLevelToString(level), message)};
+		auto const levelAsString{LogLevelToString(level)};
+		auto const completeMessage{std::format("[{}] {}", levelAsString, message)};
 
-		m_File << completeMessage << '\n';
+		Log(message);
+	}
 
-		if (level == LogLevel::Error) {
-			std::cerr << completeMessage << std::endl;
-		} else {
-			std::cout << completeMessage << std::endl;
-		}
+	void Logger::Log(std::string_view message) {
+		m_File << message << '\n';
+		std::cout << message << std::endl;
 	}
 
 	Logger::Logger() = default;

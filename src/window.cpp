@@ -6,7 +6,7 @@
 
 namespace raytracing {
 	void GLFWWindowDestroyer::operator()(GLFWwindow *window) const {
-		Logger::GetInstance().Log(LogLevel::Debug, "Destroying window");
+		Logger::get_instance().Log(LogLevel::Debug, "Destroying window");
 		glfwDestroyWindow(window);
 	}
 
@@ -16,7 +16,7 @@ namespace raytracing {
 		    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 		    return glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
 	    }()} {
-		Logger::GetInstance().Log(LogLevel::Debug, "Creating window");
+		Logger::get_instance().Log(LogLevel::Debug, "Creating window");
 	}
 
 	void Window::MainLoop() const {

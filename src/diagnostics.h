@@ -30,6 +30,8 @@ namespace raytracing {
 	public:
 		void Log(LogLevel level, std::string_view message);
 
+		void Log(std::string_view message);
+
 		Logger();
 	};
 }// namespace raytracing
