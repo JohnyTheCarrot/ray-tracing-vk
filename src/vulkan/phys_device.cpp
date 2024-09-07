@@ -1,5 +1,6 @@
 #include "phys_device.h"
 #include "VkBootstrap.h"
+#include "src/diagnostics.h"
 #include "src/vulkan/logical_device.h"
 #include <format>
 #include <stdexcept>
@@ -18,6 +19,7 @@ namespace raytracing::vulkan {
 	}
 
 	LogicalDevice PhysicalDevice::create_logical_device() const {
+		Logger::get_instance().log(LogLevel::Debug, "Creating logical device");
 		vkb::DeviceBuilder const device_builder{device_};
 		auto                     dev_ret{device_builder.build()};
 

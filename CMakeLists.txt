@@ -53,6 +53,8 @@ set(SOURCE_FILES
         src/vulkan/phys_device.cpp
         src/vulkan/logical_device.h
         src/vulkan/logical_device.cpp
+        src/vulkan/swapchain.h
+        src/vulkan/swapchain.cpp
 )
 
 foreach (GLSL ${GLSL_SOURCE_FILES})

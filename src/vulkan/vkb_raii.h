@@ -1,5 +1,5 @@
-#ifndef VKB_RAII
-#define VKB_RAII
+#ifndef SRC_VULKAN_VKB_RAII_H_
+#define SRC_VULKAN_VKB_RAII_H_
 
 #include <VkBootstrap.h>
 #include <concepts>
@@ -12,6 +12,11 @@ namespace raytracing {
 	class UniqueContainer final {
 		std::optional<V> m_Value;
 		Destroyer        m_Destroyer;
+
+		void cleanup() noexcept {
+			if (m_Value.has_value())
+				m_Destroyer(m_Value.value());
+		}
 
 	public:
 		template<typename... Args>
@@ -29,8 +34,7 @@ namespace raytracing {
 		}
 
 		~UniqueContainer() noexcept {
-			if (m_Value.has_value())
-				m_Destroyer(m_Value.value());
+			cleanup();
 		}
 
 		UniqueContainer(UniqueContainer const &) = delete;
@@ -43,12 +47,11 @@ namespace raytracing {
 			other.m_Value = std::nullopt;
 		}
 
-		[[nodiscard]]
-		UniqueContainer &
-		operator=(UniqueContainer &&other) {
+		UniqueContainer &operator=(UniqueContainer &&other) {
 			if (&other == this)
 				return *this;
 
+			cleanup();
 			m_Value     = std::move(other.m_Value);
 			m_Destroyer = std::move(other.m_Destroyer);
 
@@ -85,5 +88,12 @@ namespace raytracing {
 	};
 
 	using UniqueVkbDevice = UniqueContainer<vkb::Device, VkbDeviceDestroyer>;
+
+	class VkbSwapchainDestroyer final {
+	public:
+		void operator()(vkb::Swapchain const &swapchain);
+	};
+
+	using UniqueVkbSwapchain = UniqueContainer<vkb::Swapchain, VkbSwapchainDestroyer>;
 }// namespace raytracing
 #endif

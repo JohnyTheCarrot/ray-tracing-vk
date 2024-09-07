@@ -9,6 +9,12 @@ namespace raytracing::vulkan {
 
 	public:
 		explicit LogicalDevice(UniqueVkbDevice &&device);
+
+		[[nodiscard]]
+		vkb::Device &get() noexcept;
+
+		[[nodiscard]]
+		vkb::Device const &get() const noexcept;
 	};
 }// namespace raytracing::vulkan
 

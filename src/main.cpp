@@ -1,11 +1,13 @@
-#include "src/vulkan/surface.h"
-#include "src/vulkan/vk_exception.h"
+
 #include <stdexcept>
 #define GLFW_INCLUDE_VULKAN
 
 #include "src/window.h"
 
 #include "diagnostics.h"
+#include "src/vulkan/surface.h"
+#include "src/vulkan/swapchain.h"
+#include "src/vulkan/vk_exception.h"
 #include "src/vulkan/vkb_raii.h"
 
 #include <VkBootstrap.h>
@@ -57,10 +59,16 @@ int run() {
 	UniqueVkbInstance vkb_instance{instance_build_result.value()};
 
 	glfwSetErrorCallback(glfw_error_callback);
-	Window           window{vkb_instance.get(), 800, 600, "Vulkan Ray Tracer"};
-	vulkan::Surface &surface{window.get_surface()};
-	auto const       physical_device{surface.select_physical_device()};
-	auto const       logical_device{physical_device.create_logical_device()};
+	Window            window{vkb_instance.get(), 800, 600, "Vulkan Ray Tracer"};
+	vulkan::Surface  &surface{window.get_surface()};
+	auto const        physical_device{surface.select_physical_device()};
+	auto const        logical_device{physical_device.create_logical_device()};
+	vulkan::Swapchain swapchain{logical_device};
+	swapchain.recreate();
+
+	window.main_loop();
+
+	Logger::get_instance().log(LogLevel::Error, "done");
 
 	return 0;
 }

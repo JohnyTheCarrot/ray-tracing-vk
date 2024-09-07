@@ -12,4 +12,9 @@ namespace raytracing {
 		Logger::get_instance().log(LogLevel::Debug, "Destroying logical device");
 		vkb::destroy_device(device);
 	}
+
+	void VkbSwapchainDestroyer::operator()(vkb::Swapchain const &swapchain) {
+		Logger::get_instance().log(LogLevel::Debug, "Destroying swapchain");
+		vkb::destroy_swapchain(swapchain);
+	}
 };// namespace raytracing
