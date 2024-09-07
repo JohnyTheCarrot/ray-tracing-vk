@@ -3,7 +3,7 @@
 
 namespace raytracing {
 	void VkbInstanceDestroyer::operator()(vkb::Instance const &instance) {
-		Logger::get_instance().log(LogLevel::Debug, "Destroying vkb::Instance");
+		Logger::get_instance().log(LogLevel::Debug, "Destroying instance");
 		vkb::destroy_instance(instance);
 	}
 };// namespace raytracing

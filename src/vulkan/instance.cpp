@@ -34,17 +34,17 @@ namespace raytracing::vulkan {
 			throw std::runtime_error{"Validation layers requested, but not available."};
 		}
 
-		VkApplicationInfo applicationInfo{};
-		applicationInfo.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-		applicationInfo.pApplicationName   = application_name.data();
-		applicationInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-		applicationInfo.pEngineName        = engine_name.data();
-		applicationInfo.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
-		applicationInfo.apiVersion         = VK_API_VERSION_1_0;
+		VkApplicationInfo application_info{};
+		application_info.sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+		application_info.pApplicationName   = application_name.data();
+		application_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+		application_info.pEngineName        = engine_name.data();
+		application_info.engineVersion      = VK_MAKE_VERSION(1, 0, 0);
+		application_info.apiVersion         = VK_API_VERSION_1_0;
 
 		VkInstanceCreateInfo instance_create_info{};
 		instance_create_info.sType            = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-		instance_create_info.pApplicationInfo = &applicationInfo;
+		instance_create_info.pApplicationInfo = &application_info;
 
 		std::uint32_t glfw_extension_count{0};
 		char const  **glfw_extensions{glfwGetRequiredInstanceExtensions(&glfw_extension_count)};

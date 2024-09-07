@@ -1,6 +1,7 @@
 #ifndef SRC_VULKAN_SURFACE_H_
 #define SRC_VULKAN_SURFACE_H_
 
+#include "VkBootstrap.h"
 #include <memory>
 
 struct VkSurfaceKHR_T;
@@ -27,9 +28,13 @@ namespace raytracing::vulkan {
 
 	class Surface final {
 		UniqueVkSurface surface_;
+		vkb::Instance  *instance_;
 
 	public:
-		Surface(VkInstance instance, VkSurfaceKHR surface);
+		Surface(vkb::Instance &instance, VkSurfaceKHR surface);
+
+		[[nodiscard]]
+		vkb::PhysicalDevice select_physical_device();
 	};
 }// namespace raytracing::vulkan
 

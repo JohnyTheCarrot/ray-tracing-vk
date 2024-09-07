@@ -59,12 +59,12 @@ namespace raytracing {
 
 		[[nodiscard]]
 		V &get() noexcept {
-			return m_Value;
+			return m_Value.value();
 		}
 
 		[[nodiscard]]
 		V const &get() const noexcept {
-			return m_Value;
+			return m_Value.value();
 		}
 
 		V *operator->() {

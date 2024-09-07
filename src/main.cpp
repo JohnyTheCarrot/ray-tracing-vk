@@ -49,7 +49,9 @@ int run() {
 	UniqueVkbInstance vkb_instance{instance_build_result.value()};
 
 	glfwSetErrorCallback(glfw_error_callback);
-	Window window{vkb_instance->instance, 800, 600, "Vulkan Ray Tracer"};
+	Window           window{vkb_instance.get(), 800, 600, "Vulkan Ray Tracer"};
+	vulkan::Surface &surface{window.get_surface()};
+	surface.select_physical_device();
 
 	return 0;
 }

@@ -1,6 +1,7 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
+#include "VkBootstrap.h"
 #include "src/vulkan/surface.h"
 #include <memory>
 #include <string_view>
@@ -27,7 +28,7 @@ namespace raytracing {
 		vulkan::Surface  surface_;
 
 	public:
-		Window(VkInstance instance, int width, int height, std::string_view title);
+		Window(vkb::Instance &instance, int width, int height, std::string_view title);
 
 		[[nodiscard]]
 		GLFWwindow *get() const noexcept;
