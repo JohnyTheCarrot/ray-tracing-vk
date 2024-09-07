@@ -63,7 +63,7 @@ int run() {
 	auto const        physical_device{surface.select_physical_device()};
 	auto const        logical_device{physical_device.create_logical_device()};
 	vulkan::Swapchain swapchain{logical_device};
-	swapchain.recreate();
+	swapchain = vulkan::Swapchain{logical_device, std::move(swapchain)};
 
 	window.main_loop();
 
