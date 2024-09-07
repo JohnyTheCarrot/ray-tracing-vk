@@ -1,3 +1,3 @@
 #!/usr/bin/bash
 
-mkdir -p build && cd build && cmake .. && cmake --build . --target raytracing
+mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && cmake --build . --target raytracing

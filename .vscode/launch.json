@@ -1,0 +1,14 @@
+{
+   "$schema": "https://raw.githubusercontent.com/mfussenegger/dapconfig-schema/master/dapconfig-schema.json",
+   "version": "0.2.0",
+   "configurations": [
+       {
+           "type": "cppdbg",
+           "request": "launch",
+           "name": "Launch",
+           "program": "${workspaceFolder}/build/raytracing",
+           "cwd": "${workspaceFolder}/build",
+	       "args": []
+       }
+   ]
+}

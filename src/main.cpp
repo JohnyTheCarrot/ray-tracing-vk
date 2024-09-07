@@ -1,4 +1,3 @@
-
 #include <stdexcept>
 #define GLFW_INCLUDE_VULKAN
 
@@ -74,16 +73,6 @@ int run() {
 }
 
 int main() {
-	/*auto system_info_ret{vkb::SystemInfo::get_system_info()};*/
-	/*if (!system_info_ret) {*/
-	/*	std::string message{std::format("Failed to get system info: {}", system_info_ret.error().message())};*/
-	/**/
-	/*	raytracing::Logger::get_instance().Log(raytracing::LogLevel::Error, std::move(message));*/
-	/*}*/
-	/*auto system_info{system_info_ret.value()};*/
-	/*for (auto const &available_layer: system_info.available_layers) {*/
-	/*	std::cout << available_layer.layerName << " : " << available_layer.description << '\n';*/
-	/*}*/
 	auto const exitCode{[] {
 		try {
 			return run();
@@ -96,8 +85,8 @@ int main() {
 		}
 
 		return 1;
-	}};
+	}()};
 
 	glfwTerminate();
-	return exitCode();
+	return exitCode;
 }
