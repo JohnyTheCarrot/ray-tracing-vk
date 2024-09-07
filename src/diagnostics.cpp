@@ -17,5 +17,10 @@ namespace raytracing {
 		std::cout << message << std::endl;
 	}
 
+	void Logger::error(std::string_view message) {
+		m_File << message << '\n';
+		std::cerr << message << std::endl;
+	}
+
 	Logger::Logger() = default;
 }// namespace raytracing

@@ -49,6 +49,10 @@ set(SOURCE_FILES
         src/vulkan/vkb_raii.cpp
         src/vulkan/surface.h
         src/vulkan/surface.cpp
+        src/vulkan/phys_device.h
+        src/vulkan/phys_device.cpp
+        src/vulkan/logical_device.h
+        src/vulkan/logical_device.cpp
 )
 
 foreach (GLSL ${GLSL_SOURCE_FILES})

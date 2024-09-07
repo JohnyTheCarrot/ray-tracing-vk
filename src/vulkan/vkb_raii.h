@@ -72,11 +72,18 @@ namespace raytracing {
 		}
 	};
 
-	class VkbInstanceDestroyer {
+	class VkbInstanceDestroyer final {
 	public:
 		void operator()(vkb::Instance const &instance);
 	};
 
 	using UniqueVkbInstance = UniqueContainer<vkb::Instance, VkbInstanceDestroyer>;
+
+	class VkbDeviceDestroyer final {
+	public:
+		void operator()(vkb::Device const &device);
+	};
+
+	using UniqueVkbDevice = UniqueContainer<vkb::Device, VkbDeviceDestroyer>;
 }// namespace raytracing
 #endif

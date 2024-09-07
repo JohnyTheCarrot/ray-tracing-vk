@@ -19,9 +19,16 @@ VkBool32 debug_callback(
 ) {
 	auto const severity{vkb::to_string_message_severity(message_severity)};
 	auto const type{vkb::to_string_message_type(message_type)};
+	auto const is_error{message_severity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT};
 
 	std::string complete_message{std::format("[{}: {}] {}", severity, type, callback_data->pMessage)};
-	raytracing::Logger::get_instance().log(complete_message);
+
+	auto &logger_instance{raytracing::Logger::get_instance()};
+	if (is_error) {
+		logger_instance.error(complete_message);
+	} else {
+		logger_instance.log(complete_message);
+	}
 
 	return VK_FALSE;
 }
@@ -36,6 +43,7 @@ int run() {
 	auto const           instance_build_result = builder.set_app_name("Vulkan Ray Tracer")
 	                                           .set_engine_name("Roingus Engine")
 	                                           .request_validation_layers()
+	                                           .require_api_version(1, 1, 0)
 	                                           .set_debug_callback(debug_callback)
 	                                           .build();
 
@@ -51,7 +59,8 @@ int run() {
 	glfwSetErrorCallback(glfw_error_callback);
 	Window           window{vkb_instance.get(), 800, 600, "Vulkan Ray Tracer"};
 	vulkan::Surface &surface{window.get_surface()};
-	surface.select_physical_device();
+	auto const       physical_device{surface.select_physical_device()};
+	auto const       logical_device{physical_device.create_logical_device()};
 
 	return 0;
 }

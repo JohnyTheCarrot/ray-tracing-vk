@@ -32,6 +32,8 @@ namespace raytracing {
 
 		void log(std::string_view message);
 
+		void error(std::string_view message);
+
 		Logger();
 	};
 }// namespace raytracing
