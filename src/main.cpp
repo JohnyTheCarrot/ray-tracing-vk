@@ -1,13 +1,10 @@
-#include <stdexcept>
+#include "src/vulkan/command_buffer.h"
+#include "src/vulkan/engine.h"
 #define GLFW_INCLUDE_VULKAN
 
-#include "src/window.h"
 
 #include "diagnostics.h"
-#include "src/vulkan/surface.h"
-#include "src/vulkan/swapchain.h"
-#include "src/vulkan/vk_exception.h"
-#include "src/vulkan/vkb_raii.h"
+#include "scene.h"
 
 #include <VkBootstrap.h>
 #include <format>
@@ -40,34 +37,20 @@ void glfw_error_callback(int error, char const *description) {
 
 int run() {
 	using namespace raytracing;
-	vkb::InstanceBuilder builder{};
-	auto const           instance_build_result = builder.set_app_name("Vulkan Ray Tracer")
-	                                           .set_engine_name("Roingus Engine")
-	                                           .request_validation_layers()
-	                                           .require_api_version(1, 1, 0)
-	                                           .set_debug_callback(debug_callback)
-	                                           .build();
+	vulkan::Engine engine{"Vulkan Raytracer"};
 
-	if (!instance_build_result) {
-		std::string message{std::format("Failed to build instance: {}", instance_build_result.error().message())};
-		Logger::get_instance().log(LogLevel::Error, std::move(message));
+	Logger::get_instance().log(LogLevel::Debug, "vulkan ready");
 
-		return 1;
-	}
+	Scene scene{
+	        engine.get_logical_device(), engine.get_command_pool(), engine.get_allocator(), "resources/maps/p2-map.glb",
+	        GltfScene{}
+	};
 
-	UniqueVkbInstance vkb_instance{instance_build_result.value()};
+	Logger::get_instance().log(LogLevel::Debug, "gltf done");
 
-	glfwSetErrorCallback(glfw_error_callback);
-	Window            window{vkb_instance.get(), 800, 600, "Vulkan Ray Tracer"};
-	vulkan::Surface  &surface{window.get_surface()};
-	auto const        physical_device{surface.select_physical_device()};
-	auto const        logical_device{physical_device.create_logical_device()};
-	vulkan::Swapchain swapchain{logical_device};
-	swapchain = vulkan::Swapchain{logical_device, std::move(swapchain)};
+	engine.main_loop();
 
-	window.main_loop();
-
-	Logger::get_instance().log(LogLevel::Error, "done");
+	Logger::get_instance().log(LogLevel::Debug, "done");
 
 	return 0;
 }
@@ -76,12 +59,9 @@ int main() {
 	auto const exitCode{[] {
 		try {
 			return run();
-		} catch (raytracing::vulkan::VkException const &ex) {
-			raytracing::Logger::get_instance().log(raytracing::LogLevel::Error, ex.what());
-		} catch (std::runtime_error const &ex) {
-			raytracing::Logger::get_instance().log(raytracing::LogLevel::Error, ex.what());
 		} catch (std::exception const &ex) {
-			raytracing::Logger::get_instance().log(raytracing::LogLevel::Error, ex.what());
+			std::string message{std::format("Exiting with error: {}", ex.what())};
+			raytracing::Logger::get_instance().log(raytracing::LogLevel::Error, std::move(message));
 		}
 
 		return 1;

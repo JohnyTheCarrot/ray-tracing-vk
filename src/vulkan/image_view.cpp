@@ -11,5 +11,4 @@ namespace raytracing::vulkan {
 		Logger::get_instance().log(LogLevel::Debug, "Destroying image view");
 		vkDestroyImageView(device_, imageView, nullptr);
 	}
-
 }// namespace raytracing::vulkan

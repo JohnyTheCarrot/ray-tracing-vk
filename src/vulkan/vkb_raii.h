@@ -3,10 +3,12 @@
 
 #include <VkBootstrap.h>
 #include <concepts>
+#include <memory>
 #include <optional>
 #include <utility>
+#include <vma/vk_mem_alloc.h>
 
-namespace raytracing {
+namespace raytracing::vulkan {
 	template<class V, class Destroyer>
 	    requires std::invocable<Destroyer, V const &>
 	class UniqueContainer final {
@@ -95,5 +97,23 @@ namespace raytracing {
 	};
 
 	using UniqueVkbSwapchain = UniqueContainer<vkb::Swapchain, VkbSwapchainDestroyer>;
-}// namespace raytracing
+
+	class VmaAllocatorDestroyer final {
+	public:
+		void operator()(VmaAllocator const &allocator);
+	};
+
+	using UniqueVmaAllocator = UniqueContainer<VmaAllocator, VmaAllocatorDestroyer>;
+
+	class VkFenceDestroyer final {
+		VkDevice device_;
+
+	public:
+		explicit VkFenceDestroyer(VkDevice device);
+
+		void operator()(VkFence fence);
+	};
+
+	using UniqueVkFence = std::unique_ptr<VkFence_T, VkFenceDestroyer>;
+}// namespace raytracing::vulkan
 #endif

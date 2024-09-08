@@ -2,7 +2,7 @@
 #include "VkBootstrap.h"
 #include "src/diagnostics.h"
 
-namespace raytracing {
+namespace raytracing::vulkan {
 	void VkbInstanceDestroyer::operator()(vkb::Instance const &instance) {
 		Logger::get_instance().log(LogLevel::Debug, "Destroying instance");
 		vkb::destroy_instance(instance);
@@ -17,4 +17,18 @@ namespace raytracing {
 		Logger::get_instance().log(LogLevel::Debug, "Destroying swapchain");
 		vkb::destroy_swapchain(swapchain);
 	}
-};// namespace raytracing
+
+	void VmaAllocatorDestroyer::operator()(VmaAllocator const &allocator) {
+		Logger::get_instance().log(LogLevel::Debug, "Destroying VmaAllocator");
+		vmaDestroyAllocator(allocator);
+	}
+
+	VkFenceDestroyer::VkFenceDestroyer(VkDevice device)
+	    : device_{device} {
+	}
+
+	void VkFenceDestroyer::operator()(VkFence fence) {
+		Logger::get_instance().log(LogLevel::Debug, "Destroying fence");
+		vkDestroyFence(device_, fence, nullptr);
+	}
+};// namespace raytracing::vulkan

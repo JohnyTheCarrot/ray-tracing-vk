@@ -20,6 +20,7 @@ namespace raytracing {
 		    if (!glfwInit()) {
 			    throw std::runtime_error{"Failed to init GLFW"};
 		    }
+
 		    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 

@@ -9,7 +9,7 @@ namespace raytracing {
 		auto const levelAsString{LogLevelToString(level)};
 		auto const completeMessage{std::format("[{}] {}", levelAsString, message)};
 
-		log(message);
+		log(completeMessage);
 	}
 
 	void Logger::log(std::string_view message) {

@@ -2,6 +2,7 @@
 #define SRC_VULKAN_LOGICAL_DEVICE_H_
 
 #include "vkb_raii.h"
+#include <cstdint>
 
 namespace raytracing::vulkan {
 	class LogicalDevice final {
@@ -15,6 +16,8 @@ namespace raytracing::vulkan {
 
 		[[nodiscard]]
 		vkb::Device const &get() const noexcept;
+
+		VkQueue get_queue(std::uint32_t index) const noexcept;
 	};
 }// namespace raytracing::vulkan
 

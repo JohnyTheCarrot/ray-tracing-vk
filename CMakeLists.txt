@@ -21,6 +21,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fetch_vk_bootstrap)
 
+FetchContent_Declare(
+    fastgltf
+    GIT_REPOSITORY https://github.com/spnda/fastgltf
+    GIT_TAG v0.8.0
+)
+FetchContent_MakeAvailable(fastgltf)
+
 # Find the required packages
 find_package(Vulkan REQUIRED)
 
@@ -57,6 +64,20 @@ set(SOURCE_FILES
         src/vulkan/swapchain.cpp
         src/vulkan/image_view.h
         src/vulkan/image_view.cpp
+        src/vulkan/allocator.h
+        src/vulkan/allocator.cpp
+        src/vulkan/buffer.h
+        src/vulkan/buffer.cpp
+        src/vulkan/command_pool.h
+        src/vulkan/command_pool.cpp
+        src/vulkan/command_buffer.h
+        src/vulkan/command_buffer.cpp
+        src/vulkan/engine.h
+        src/vulkan/engine.cpp
+        src/mesh.h
+        src/mesh.cpp
+        src/scene.h
+        src/scene.cpp
 )
 
 foreach (GLSL ${GLSL_SOURCE_FILES})
@@ -100,7 +121,7 @@ add_dependencies(${PROJECT_NAME} Shaders)
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${glm_SOURCE_DIR})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES} glfw vk-bootstrap::vk-bootstrap)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES} glfw vk-bootstrap::vk-bootstrap fastgltf)
  
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE GPUOpen::VulkanMemoryAllocator)

@@ -29,11 +29,16 @@ namespace raytracing::vulkan {
 	}
 
 	PhysicalDevice Surface::select_physical_device() {
-		vkb::PhysicalDeviceSelector phys_device_selector{*instance_};
+		vkb::PhysicalDeviceSelector      phys_device_selector{*instance_};
+		VkPhysicalDeviceVulkan12Features vk12_features{};
+		vk12_features.runtimeDescriptorArray = true;
+		vk12_features.descriptorIndexing     = true;
+		vk12_features.bufferDeviceAddress    = true;
 
 		auto device_selector_return = phys_device_selector.set_surface(surface_.get())
 		                                      .prefer_gpu_device_type(vkb::PreferredDeviceType::integrated)
 		                                      .add_required_extensions(required_extensions)
+		                                      .set_required_features_12(vk12_features)
 		                                      .select();
 
 		if (!device_selector_return) {
