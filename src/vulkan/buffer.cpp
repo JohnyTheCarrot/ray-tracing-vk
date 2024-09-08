@@ -14,7 +14,7 @@ namespace raytracing::vulkan {
 	}
 
 	Buffer::Buffer(
-	        VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage_flags,
+	        VkDevice device, VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage_flags,
 	        VmaAllocationCreateFlags alloc_flags
 	)
 	    : buffer_{[&] {
@@ -37,7 +37,8 @@ namespace raytracing::vulkan {
 
 		    return vulkan::UniqueVkBuffer{buffer, vulkan::BufferDestroyer{allocator, allocation_}};
 	    }()}
-	    , size_{size} {
+	    , size_{size}
+	    , device_{device} {
 	}
 
 	VkBuffer Buffer::get() const noexcept {
@@ -51,5 +52,14 @@ namespace raytracing::vulkan {
 		copy_region.size      = size_;
 
 		vkCmdCopyBuffer(command_buffer.get(), buffer_.get(), buffer.get(), 1, &copy_region);
+	}
+
+	VkDeviceAddress Buffer::get_device_address() const {
+		VkBufferDeviceAddressInfo bufferInfo{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, buffer_.get()};
+		return vkGetBufferDeviceAddress(device_, &bufferInfo);
+	}
+
+	VkDeviceSize Buffer::get_size() const noexcept {
+		return size_;
 	}
 }// namespace raytracing::vulkan

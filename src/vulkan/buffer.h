@@ -26,15 +26,16 @@ namespace raytracing::vulkan {
 		UniqueVkBuffer buffer_;
 		VmaAllocation  allocation_;
 		VkDeviceSize   size_;
+		VkDevice       device_;
 
 	public:
-		Buffer(VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage_flags,
+		Buffer(VkDevice device, VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage_flags,
 		       VmaAllocationCreateFlags alloc_flags);
 
 		template<class V>
-		Buffer(VmaAllocator allocator, std::span<V> span, VkBufferUsageFlags usage_flags)
-		    : Buffer{allocator, span.size_bytes(), usage_flags, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
-		      } {
+		Buffer(VkDevice device, VmaAllocator allocator, std::span<V> span, VkBufferUsageFlags usage_flags)
+		    : Buffer{device, allocator, span.size_bytes(), usage_flags,
+		             VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT} {
 			if (VkResult const result{
 			            vmaCopyMemoryToAllocation(allocator, span.data(), allocation_, 0, span.size_bytes())
 			    };
@@ -45,6 +46,12 @@ namespace raytracing::vulkan {
 
 		[[nodiscard]]
 		VkBuffer get() const noexcept;
+
+		[[nodiscard]]
+		VkDeviceAddress get_device_address() const;
+
+		[[nodiscard]]
+		VkDeviceSize get_size() const noexcept;
 
 		void copy_to(CommandBuffer const &command_buffer, Buffer &buffer) const;
 	};

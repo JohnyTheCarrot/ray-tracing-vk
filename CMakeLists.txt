@@ -74,6 +74,10 @@ set(SOURCE_FILES
         src/vulkan/command_buffer.cpp
         src/vulkan/engine.h
         src/vulkan/engine.cpp
+        src/vulkan/ext_fns.h
+        src/vulkan/ext_fns.cpp
+        src/vulkan/acc_struct.h
+        src/vulkan/acc_struct.cpp
         src/mesh.h
         src/mesh.cpp
         src/scene.h

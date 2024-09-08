@@ -6,6 +6,7 @@
 #include "src/vulkan/vkb_raii.h"
 #include <cstdint>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace raytracing {
 	namespace vulkan {
@@ -14,15 +15,21 @@ namespace raytracing {
 
 	using MeshIndex = std::uint32_t;
 
+	struct MeshBlasInput final {
+		std::vector<VkAccelerationStructureGeometryKHR>       acc_structure_geom;
+		std::vector<VkAccelerationStructureBuildRangeInfoKHR> acc_structure_build_offset_info;
+	};
+
 	class Mesh final {
-		std::vector<MeshIndex> indices_;
-		std::vector<Vertex>    vertices_;
-		vulkan::Buffer         index_buffer_;
-		vulkan::Buffer         vertex_buffer_;
+		vulkan::Buffer index_buffer_;
+		vulkan::Buffer vertex_buffer_;
 
 	public:
-		Mesh(VmaAllocator allocator, vulkan::CommandBuffer const &command_buffer, std::vector<MeshIndex> &&indices,
-		     std::vector<Vertex> &&vertices);
+		Mesh(VkDevice device, VmaAllocator allocator, vulkan::CommandBuffer const &command_buffer,
+		     std::vector<MeshIndex> &indices, std::vector<Vertex> &vertices);
+
+		[[nodiscard]]
+		MeshBlasInput to_blas_input() const;
 	};
 }// namespace raytracing
 

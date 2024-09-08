@@ -35,6 +35,11 @@ namespace raytracing::vulkan {
 		vk12_features.descriptorIndexing     = true;
 		vk12_features.bufferDeviceAddress    = true;
 
+		VkPhysicalDeviceAccelerationStructureFeaturesKHR accelFeature{
+		        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR
+		};
+		vk12_features.pNext = &accelFeature;
+
 		auto device_selector_return = phys_device_selector.set_surface(surface_.get())
 		                                      .prefer_gpu_device_type(vkb::PreferredDeviceType::integrated)
 		                                      .add_required_extensions(required_extensions)
