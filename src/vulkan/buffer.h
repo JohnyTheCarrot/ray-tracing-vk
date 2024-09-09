@@ -1,6 +1,7 @@
 #ifndef SRC_VULKAN_BUFFER_H_
 #define SRC_VULKAN_BUFFER_H_
 
+#include <optional>
 #include <span>
 #include <vulkan/vulkan_core.h>
 
@@ -30,12 +31,17 @@ namespace raytracing::vulkan {
 
 	public:
 		Buffer(VkDevice device, VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage_flags,
-		       VmaAllocationCreateFlags alloc_flags);
+		       VmaAllocationCreateFlags alloc_flags, std::optional<VkDeviceSize> alignment = std::nullopt);
 
 		template<class V>
-		Buffer(VkDevice device, VmaAllocator allocator, std::span<V> span, VkBufferUsageFlags usage_flags)
-		    : Buffer{device, allocator, span.size_bytes(), usage_flags,
-		             VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT} {
+		Buffer(VkDevice device, VmaAllocator allocator, std::span<V> span, VkBufferUsageFlags usage_flags,
+		       std::optional<VkDeviceSize> alignment = std::nullopt)
+		    : Buffer{device,
+		             allocator,
+		             span.size_bytes(),
+		             usage_flags,
+		             VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+		             alignment} {
 			if (VkResult const result{
 			            vmaCopyMemoryToAllocation(allocator, span.data(), allocation_, 0, span.size_bytes())
 			    };

@@ -46,4 +46,34 @@ namespace raytracing::vulkan::ext {
 
 		return func(device, accelerationStructure, pAllocator);
 	}
+
+	VkDeviceAddress vkGetAccelerationStructureDeviceAddressKHR(
+	        VkDevice device, VkAccelerationStructureDeviceAddressInfoKHR const *addressInfo
+	) {
+		auto const func{reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(
+		        vkGetDeviceProcAddr(device, "vkGetAccelerationStructureDeviceAddressKHR")
+		)};
+
+		if (func == nullptr) {
+			throw std::runtime_error{"Failed to get vkGetAccelerationStructureDeviceAddressKHR function"};
+		}
+
+		return func(device, addressInfo);
+	}
+
+	void vkCmdBuildAccelerationStructuresKHR(
+	        VkDevice device, VkCommandBuffer commandBuffer, uint32_t infoCount,
+	        VkAccelerationStructureBuildGeometryInfoKHR const     *pInfos,
+	        VkAccelerationStructureBuildRangeInfoKHR const *const *ppBuildRangeInfos
+	) {
+		auto const func{reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(
+		        vkGetDeviceProcAddr(device, "vkCmdBuildAccelerationStructuresKHR")
+		)};
+
+		if (func == nullptr) {
+			throw std::runtime_error{"Failed to get vkCmdBuildAccelerationStructuresKHR function"};
+		}
+
+		return func(commandBuffer, infoCount, pInfos, ppBuildRangeInfos);
+	}
 }// namespace raytracing::vulkan::ext

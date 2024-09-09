@@ -19,6 +19,17 @@ namespace raytracing::vulkan::ext {
 	void vkDestroyAccelerationStructureKHR(
 	        VkDevice device, VkAccelerationStructureKHR accelerationStructure, VkAllocationCallbacks const *pAllocator
 	);
+
+	[[nodiscard]]
+	VkDeviceAddress vkGetAccelerationStructureDeviceAddressKHR(
+	        VkDevice device, VkAccelerationStructureDeviceAddressInfoKHR const *addressInfo
+	);
+
+	void vkCmdBuildAccelerationStructuresKHR(
+	        VkDevice device, VkCommandBuffer commandBuffer, uint32_t infoCount,
+	        VkAccelerationStructureBuildGeometryInfoKHR const     *pInfos,
+	        VkAccelerationStructureBuildRangeInfoKHR const *const *ppBuildRangeInfos
+	);
 }// namespace raytracing::vulkan::ext
 
 #endif//  SRC_VULKAN_EXT_FNS_H_

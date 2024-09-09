@@ -1,5 +1,4 @@
 #include "acc_struct.h"
-#include "src/diagnostics.h"
 #include "src/vulkan/ext_fns.h"
 #include "src/vulkan/vk_exception.h"
 #include <vulkan/vulkan_core.h>
@@ -10,13 +9,12 @@ namespace raytracing::vulkan {
 	}
 
 	void AccelerationStructureDestroyer::operator()(VkAccelerationStructureKHR acc) const {
-		Logger::get_instance().log(LogLevel::Debug, "Destroying acceleration structure");
+		/*Logger::get_instance().log(LogLevel::Debug, "Destroying acceleration structure");*/
 		vulkan::ext::vkDestroyAccelerationStructureKHR(device_, acc, nullptr);
 	}
 
 	AccelerationStructure::AccelerationStructure(
-	        VkDevice device, VkPhysicalDevice phys_device, VmaAllocator allocator,
-	        VkAccelerationStructureCreateInfoKHR const &create_info
+	        VkDevice device, VmaAllocator allocator, VkAccelerationStructureCreateInfoKHR const &create_info
 	)
 	    : buffer_{device, allocator, create_info.size,
 	              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, 0}

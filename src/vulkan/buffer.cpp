@@ -1,5 +1,7 @@
 #include "buffer.h"
 #include "command_buffer.h"
+#include <cstdint>
+#include <optional>
 #include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
@@ -15,7 +17,7 @@ namespace raytracing::vulkan {
 
 	Buffer::Buffer(
 	        VkDevice device, VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage_flags,
-	        VmaAllocationCreateFlags alloc_flags
+	        VmaAllocationCreateFlags alloc_flags, std::optional<VkDeviceSize> alignment
 	)
 	    : buffer_{[&] {
 		    VkBufferCreateInfo buffer_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
@@ -28,11 +30,20 @@ namespace raytracing::vulkan {
 
 		    VkBuffer buffer{};
 
-		    if (VkResult const result{
-		                vmaCreateBuffer(allocator, &buffer_info, &alloc_info, &buffer, &allocation_, nullptr)
-		        };
-		        result != VK_SUCCESS) {
-			    throw vulkan::VkException{"Failed to create buffer", result};
+		    if (alignment.has_value()) {
+			    if (VkResult const result{vmaCreateBufferWithAlignment(
+			                allocator, &buffer_info, &alloc_info, alignment.value(), &buffer, &allocation_, nullptr
+			        )};
+			        result != VK_SUCCESS) {
+				    throw vulkan::VkException{"Failed to create buffer with alignment", result};
+			    }
+		    } else {
+			    if (VkResult const result{
+			                vmaCreateBuffer(allocator, &buffer_info, &alloc_info, &buffer, &allocation_, nullptr)
+			        };
+			        result != VK_SUCCESS) {
+				    throw vulkan::VkException{"Failed to create buffer", result};
+			    }
 		    }
 
 		    return vulkan::UniqueVkBuffer{buffer, vulkan::BufferDestroyer{allocator, allocation_}};

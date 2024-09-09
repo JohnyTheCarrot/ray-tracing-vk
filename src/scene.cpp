@@ -13,6 +13,9 @@
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
 #include <format>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/quaternion.hpp>
+#include <glm/matrix.hpp>
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
@@ -27,7 +30,7 @@ namespace raytracing {
 			create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 			create_info.size = build_structures[idx].size_info_.accelerationStructureSize;
 
-			build_structures[idx].acc_ = {device, phys_device, allocator, create_info};
+			build_structures[idx].acc_ = {device, allocator, create_info};
 		}
 	}
 
@@ -104,6 +107,114 @@ namespace raytracing {
 		}
 
 		return build_structures;
+	}
+
+	vulkan::AccelerationStructure Scene::create_tlas(
+	        vulkan::LogicalDevice const &device, VmaAllocator allocator, vulkan::CommandBuffer const &command_buffer,
+	        std::vector<BuildAccelerationStructure> const &blas, std::vector<MeshInstance> const &mesh_instances
+	) {
+		std::vector<VkAccelerationStructureInstanceKHR> instances{};
+		instances.reserve(mesh_instances.size());
+
+		for (auto const &mesh_instance: mesh_instances) {
+			VkAccelerationStructureInstanceKHR instance{};
+			instance.transform = [&] {
+				glm::mat4 const      transposed{glm::transpose(mesh_instance.model_matrix_)};
+				VkTransformMatrixKHR result{};
+				memcpy(&result, &transposed, sizeof(VkTransformMatrixKHR));
+
+				return result;
+			}();
+			instance.instanceCustomIndex            = mesh_instance.mesh_idx_;
+			instance.accelerationStructureReference = [&] {
+				VkAccelerationStructureDeviceAddressInfoKHR address_info{
+				        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR
+				};
+				address_info.accelerationStructure = blas[mesh_instance.mesh_idx_].acc_.value().get_acc();
+
+				return vulkan::ext::vkGetAccelerationStructureDeviceAddressKHR(device.get().device, &address_info);
+			}();
+			instance.flags                                  = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+			instance.mask                                   = 0xFF;
+			instance.instanceShaderBindingTableRecordOffset = 0;
+			instances.emplace_back(instance);
+		}
+
+		std::uint32_t  instance_count{static_cast<std::uint32_t>(instances.size())};
+		vulkan::Buffer instances_buffer{
+		        device.get().device, allocator, std::span<VkAccelerationStructureInstanceKHR>{instances},
+		        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+		                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
+		};
+
+		VkMemoryBarrier barrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+		barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+
+		vkCmdPipelineBarrier(
+		        command_buffer.get(), VK_PIPELINE_STAGE_TRANSFER_BIT,
+		        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &barrier, 0, nullptr, 0, nullptr
+		);
+
+		// cmd
+		VkAccelerationStructureGeometryInstancesDataKHR instances_vk{
+		        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR
+		};
+		instances_vk.data.deviceAddress = instances_buffer.get_device_address();
+
+		VkAccelerationStructureGeometryKHR top_acc_structure_geom{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR
+		};
+
+		top_acc_structure_geom.geometryType       = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+		top_acc_structure_geom.geometry.instances = instances_vk;
+
+		VkAccelerationStructureBuildGeometryInfoKHR build_geometry_info{
+		        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR
+		};
+		build_geometry_info.flags                    = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+		build_geometry_info.geometryCount            = 1;
+		build_geometry_info.pGeometries              = &top_acc_structure_geom;
+		build_geometry_info.mode                     = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+		build_geometry_info.type                     = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+		build_geometry_info.srcAccelerationStructure = VK_NULL_HANDLE;
+
+		VkAccelerationStructureBuildSizesInfoKHR size_info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR
+		};
+		vulkan::ext::vkGetAccelerationStructureBuildSizesKHR(
+		        device.get().device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &build_geometry_info,
+		        &instance_count, &size_info
+		);
+
+		VkAccelerationStructureCreateInfoKHR create_info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
+		create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+		create_info.size = size_info.accelerationStructureSize;
+
+		auto const scratch_alignment{
+		        device.get_phys().get_as_properties().minAccelerationStructureScratchOffsetAlignment
+		};
+
+		vulkan::AccelerationStructure tlas{device.get().device, allocator, create_info};
+		vulkan::Buffer                scratch_buffer{
+                device.get().device,
+                allocator,
+                size_info.buildScratchSize,
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                0,
+                scratch_alignment
+        };
+		VkDeviceAddress scratch_buff_addr{scratch_buffer.get_device_address()};
+
+		build_geometry_info.dstAccelerationStructure  = tlas.get_acc();
+		build_geometry_info.scratchData.deviceAddress = scratch_buff_addr;
+
+		VkAccelerationStructureBuildRangeInfoKHR build_offset_info{instance_count, 0, 0, 0};
+		auto const                              *build_offset_info_ptr{&build_offset_info};
+
+		vulkan::ext::vkCmdBuildAccelerationStructuresKHR(
+		        device.get().device, command_buffer.get(), 1, &build_geometry_info, &build_offset_info_ptr
+		);
+
+		return tlas;
 	}
 
 	Scene::Scene(
@@ -185,8 +296,57 @@ namespace raytracing {
 			meshes_.emplace_back(device.get().device, allocator, command_buffer, indices, vertices);
 		}
 
-		auto const blas{create_blas(device.get().physical_device, command_buffer, allocator, device.get().device)};
-		// TODO: blas result usage
+		for (auto const &node: asset->nodes) {
+			SceneNode scene_node{};
+
+			if (node.meshIndex.has_value()) {
+				scene_node.mesh_idx_ = node.meshIndex.value();
+			}
+
+			glm::mat4 glm_mat{};
+
+			if (std::holds_alternative<fastgltf::math::fmat4x4>(node.transform)) {
+				auto const mat{std::get<fastgltf::math::fmat4x4>(node.transform)};
+				memcpy(&glm_mat, mat.data(), sizeof(mat));
+			} else {
+				auto const trs{std::get<fastgltf::TRS>(node.transform)};
+				glm::vec3  trans{trs.translation.x(), trs.translation.y(), trs.translation.z()};
+				glm::quat  rot{trs.rotation.w(), trs.rotation.x(), trs.rotation.y(), trs.rotation.z()};
+				glm::vec3  scale{trs.scale.x(), trs.scale.y(), trs.scale.z()};
+
+				glm::mat4 trans_mat{glm::translate(glm::mat4{1.f}, trans)};
+				glm::mat4 rot_mat{glm::toMat4(rot)};
+				glm::mat4 scale_mat{glm::scale(glm::mat4{1.f}, scale)};
+
+				glm_mat = trans_mat * rot_mat * scale_mat;
+			}
+
+			scene_node.local_matrix_ = glm_mat;
+			nodes_.emplace_back(scene_node);
+		}
+
+		for (std::size_t idx{}; idx < asset->nodes.size(); ++idx) {
+			auto       &node{nodes_.at(idx)};
+			auto const &gltf_node{asset->nodes[idx]};
+
+			for (auto child_idx: gltf_node.children) {
+				auto &child_node{nodes_[child_idx]};
+
+				child_node.local_matrix_ = node.local_matrix_ * child_node.local_matrix_;
+			}
+		}
+
+		std::vector<MeshInstance> mesh_instances{};
+		mesh_instances.reserve(nodes_.size());
+		for (auto const &node: nodes_) {
+			if (!node.mesh_idx_.has_value())
+				continue;
+
+			mesh_instances.emplace_back(node.local_matrix_, node.mesh_idx_.value());
+		}
+
+		blas_ = create_blas(device.get().physical_device, command_buffer, allocator, device.get().device);
+		tlas_ = create_tlas(device, allocator, command_buffer, blas_, mesh_instances);
 
 		vulkan::UniqueVkFence fence{[&] {
 			VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};

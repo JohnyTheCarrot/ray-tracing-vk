@@ -31,8 +31,7 @@ namespace raytracing::vulkan {
 
 	public:
 		AccelerationStructure(
-		        VkDevice device, VkPhysicalDevice phys_device, VmaAllocator allocator,
-		        VkAccelerationStructureCreateInfoKHR const &create_info
+		        VkDevice device, VmaAllocator allocator, VkAccelerationStructureCreateInfoKHR const &create_info
 		);
 
 		[[nodiscard]]

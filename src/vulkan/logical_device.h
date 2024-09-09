@@ -5,17 +5,23 @@
 #include <cstdint>
 
 namespace raytracing::vulkan {
+	class PhysicalDevice;
+
 	class LogicalDevice final {
-		UniqueVkbDevice device_;
+		UniqueVkbDevice       device_;
+		PhysicalDevice const *phys_device_;
 
 	public:
-		explicit LogicalDevice(UniqueVkbDevice &&device);
+		LogicalDevice(UniqueVkbDevice &&device, PhysicalDevice const &phys_device);
 
 		[[nodiscard]]
 		vkb::Device &get() noexcept;
 
 		[[nodiscard]]
 		vkb::Device const &get() const noexcept;
+
+		[[nodiscard]]
+		PhysicalDevice const &get_phys() const noexcept;
 
 		VkQueue get_queue(std::uint32_t index) const noexcept;
 	};
