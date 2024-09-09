@@ -2,10 +2,11 @@
 #define SRC_VULKAN_ENGINE_H_
 
 #include "src/vulkan/allocator.h"
-#include "src/vulkan/command_buffer.h"
 #include "src/vulkan/command_pool.h"
+#include "src/vulkan/graphics_pipeline.h"
 #include "src/vulkan/logical_device.h"
 #include "src/vulkan/phys_device.h"
+#include "src/vulkan/shader_module.h"
 #include "src/vulkan/swapchain.h"
 #include "src/vulkan/vkb_raii.h"
 #include "src/window.h"
@@ -20,6 +21,9 @@ namespace raytracing::vulkan {
 		CommandPool       command_pool_;
 		Swapchain         swapchain_;
 		Allocator         allocator_;
+		ShaderModule      vert_shader_module_;
+		ShaderModule      frag_shader_module_;
+		GraphicsPipeline  graphics_pipeline_;
 
 	public:
 		explicit Engine(std::string_view app_name);

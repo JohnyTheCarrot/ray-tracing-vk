@@ -33,8 +33,6 @@ namespace raytracing {
 		[[nodiscard]]
 		GLFWwindow *get() const noexcept;
 
-		void main_loop() const;
-
 		[[nodiscard]]
 		vulkan::Surface &get_surface() noexcept;
 

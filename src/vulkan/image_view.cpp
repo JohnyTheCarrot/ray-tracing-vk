@@ -3,11 +3,11 @@
 #include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
-	ImageViewDestroyer::ImageViewDestroyer(VkDevice device)
+	VkImageViewDestroyer::VkImageViewDestroyer(VkDevice device)
 	    : device_{device} {
 	}
 
-	void ImageViewDestroyer::operator()(VkImageView imageView) {
+	void VkImageViewDestroyer::operator()(VkImageView imageView) const {
 		Logger::get_instance().log(LogLevel::Debug, "Destroying image view");
 		vkDestroyImageView(device_, imageView, nullptr);
 	}

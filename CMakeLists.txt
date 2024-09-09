@@ -36,9 +36,11 @@ find_package(Vulkan REQUIRED)
 
 include_directories(${Vulkan_INCLUDE_DIRS})
 
-set(SHADER_SOURCE_DIR "shaders")
 set(SHADER_BINARY_DIR "shaders")
-set(GLSL_SOURCE_FILES "")
+set(GLSL_SOURCE_FILES 
+        src/shaders/shader.vert
+        src/shaders/shader.frag
+)
 
 set(SOURCE_FILES
         src/main.cpp
@@ -78,6 +80,18 @@ set(SOURCE_FILES
         src/vulkan/ext_fns.cpp
         src/vulkan/acc_struct.h
         src/vulkan/acc_struct.cpp
+        src/vulkan/shader_module.h
+        src/vulkan/shader_module.cpp
+        src/vulkan/pipeline_layout.h
+        src/vulkan/pipeline_layout.cpp
+        src/vulkan/graphics_pipeline.h
+        src/vulkan/graphics_pipeline.cpp
+        src/vulkan/render_pass.h
+        src/vulkan/render_pass.cpp
+        src/vulkan/frame_buffer.h
+        src/vulkan/frame_buffer.cpp
+        src/vulkan/semaphore.h
+        src/vulkan/semaphore.cpp
         src/mesh.h
         src/mesh.cpp
         src/scene.h
@@ -89,7 +103,7 @@ foreach (GLSL ${GLSL_SOURCE_FILES})
     set(SPIRV "${SHADER_BINARY_DIR}/${FILE_NAME}.spv")
     add_custom_command(
             OUTPUT ${SPIRV}
-            COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${GLSL} -c --target-env=vulkan1.2 -o ${SPIRV}
+            COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${CMAKE_SOURCE_DIR}/${GLSL} -c --target-env=vulkan1.2 -o ${SPIRV}
             DEPENDS ${GLSL}
     )
     list(APPEND SPIRV_BINARY_FILES ${SPIRV})

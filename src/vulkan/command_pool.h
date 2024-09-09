@@ -32,7 +32,10 @@ namespace raytracing::vulkan {
 		VkQueue              queue_;
 
 	public:
-		CommandPool(std::uint32_t queue_family_idx, LogicalDevice const &device);
+		CommandPool(
+		        std::uint32_t queue_family_idx, LogicalDevice const &device,
+		        VkCommandPoolCreateFlags flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
+		);
 
 		[[nodiscard]]
 		std::vector<CommandBuffer> allocate_command_buffers(std::size_t num) const;

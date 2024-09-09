@@ -17,10 +17,12 @@ namespace raytracing::vulkan {
 		vkDestroyCommandPool(device_, command_pool, nullptr);
 	}
 
-	CommandPool::CommandPool(std::uint32_t queue_family_idx, LogicalDevice const &device)
+	CommandPool::CommandPool(
+	        std::uint32_t queue_family_idx, LogicalDevice const &device, VkCommandPoolCreateFlags flags
+	)
 	    : command_pool_{[&] {
 		    VkCommandPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
-		    pool_info.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+		    pool_info.flags            = flags;
 		    pool_info.queueFamilyIndex = queue_family_idx;
 
 		    VkCommandPool command_pool{};

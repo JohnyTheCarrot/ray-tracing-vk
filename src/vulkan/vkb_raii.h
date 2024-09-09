@@ -115,5 +115,27 @@ namespace raytracing::vulkan {
 	};
 
 	using UniqueVkFence = std::unique_ptr<VkFence_T, VkFenceDestroyer>;
+
+	class VkShaderModuleDestroyer final {
+		VkDevice device_;
+
+	public:
+		explicit VkShaderModuleDestroyer(VkDevice device);
+
+		void operator()(VkShaderModule shader_module) const;
+	};
+
+	using UniqueVkShaderModule = std::unique_ptr<VkShaderModule_T, VkShaderModuleDestroyer>;
+
+	class VkPipelineLayoutDestroyer final {
+		VkDevice device_;
+
+	public:
+		explicit VkPipelineLayoutDestroyer(VkDevice device);
+
+		void operator()(VkPipelineLayout pipeline_layout) const;
+	};
+
+	using UniqueVkPipelineLayout = std::unique_ptr<VkPipelineLayout_T, VkPipelineLayoutDestroyer>;
 }// namespace raytracing::vulkan
 #endif

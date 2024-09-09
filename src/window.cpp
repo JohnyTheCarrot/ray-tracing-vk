@@ -45,10 +45,6 @@ namespace raytracing {
 		return window_.get();
 	}
 
-	void Window::main_loop() const {
-		while (!glfwWindowShouldClose(window_.get())) { glfwPollEvents(); }
-	}
-
 	vulkan::Surface &Window::get_surface() noexcept {
 		return surface_;
 	}

@@ -10,16 +10,18 @@ struct VkImageView_T;
 using VkImageView = VkImageView_T *;
 
 namespace raytracing::vulkan {
-	class ImageViewDestroyer final {
+	class Swapchain;
+
+	class VkImageViewDestroyer final {
 		VkDevice device_;
 
 	public:
-		explicit ImageViewDestroyer(VkDevice device);
+		explicit VkImageViewDestroyer(VkDevice device);
 
-		void operator()(VkImageView imageView);
+		void operator()(VkImageView imageView) const;
 	};
 
-	using UniqueImageView = std::unique_ptr<VkImageView_T, ImageViewDestroyer>;
+	using UniqueVkImageView = std::unique_ptr<VkImageView_T, VkImageViewDestroyer>;
 }// namespace raytracing::vulkan
 
 #endif//  SRC_VULKAN_IMAGE_VIEW_H_

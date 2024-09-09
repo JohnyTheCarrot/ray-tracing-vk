@@ -1,9 +1,12 @@
 #include "swapchain.h"
 #include "logical_device.h"
 #include "src/diagnostics.h"
+#include "src/vulkan/vk_exception.h"
 #include <algorithm>
+#include <cstdint>
 #include <format>
 #include <iterator>
+#include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
 	Swapchain::Swapchain(LogicalDevice const &device, std::optional<Swapchain> &&old)
@@ -36,17 +39,31 @@ namespace raytracing::vulkan {
 			    std::string message{std::format("Couldn't get swapchain image views: {}", views.error().message())};
 			    throw std::runtime_error{std::move(message)};
 		    }
-		    std::vector<UniqueImageView> unique_views;
+		    std::vector<UniqueVkImageView> unique_views;
 		    std::transform(
 		            views->cbegin(), views->cend(), std::back_inserter(unique_views),
 		            [&](VkImageView image_view) {
-			            return UniqueImageView{image_view, ImageViewDestroyer{device.get()}};
+			            return UniqueVkImageView{image_view, VkImageViewDestroyer{device.get()}};
 		            }
 		    );
 
 		    return unique_views;
 	    }()}
 	    , device_{&device} {
+		std::uint32_t image_count{};
+		if (VkResult const result{vkGetSwapchainImagesKHR(device_->get(), swapchain_->swapchain, &image_count, nullptr)
+		    };
+		    result != VK_SUCCESS) {
+			throw VkException{"Could not get swapchain image count", result};
+		}
+
+		images_.resize(image_count);
+		if (VkResult const result{
+		            vkGetSwapchainImagesKHR(device_->get(), swapchain_->swapchain, &image_count, images_.data())
+		    };
+		    result != VK_SUCCESS) {
+			throw VkException{"Could not get swapchain images", result};
+		}
 	}
 
 	vkb::Swapchain &Swapchain::get() noexcept {
@@ -55,5 +72,9 @@ namespace raytracing::vulkan {
 
 	vkb::Swapchain const &Swapchain::get() const noexcept {
 		return swapchain_.get();
+	}
+
+	std::vector<UniqueVkImageView> const &Swapchain::get_views() const {
+		return image_views_;
 	}
 }// namespace raytracing::vulkan

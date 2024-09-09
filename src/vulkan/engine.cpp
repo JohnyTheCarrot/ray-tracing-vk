@@ -1,8 +1,15 @@
 #include "engine.h"
+
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
+#include "VkBootstrap.h"
 #include "src/diagnostics.h"
 #include "src/vulkan/command_pool.h"
+#include "src/vulkan/graphics_pipeline.h"
 #include "src/vulkan/logical_device.h"
 #include "src/vulkan/phys_device.h"
+#include <filesystem>
 #include <format>
 #include <stdexcept>
 
@@ -25,6 +32,22 @@ namespace raytracing::vulkan {
 		}
 
 		return VK_FALSE;
+	}
+
+	std::vector<char> read_file(std::filesystem::path const &path) {
+		std::ifstream file{path, std::ios::binary | std::ios::ate};
+
+		if (!file) {
+			throw std::runtime_error{std::string{"couldn't open file " + path.string()}};
+		}
+
+		size_t            filesize = (size_t) file.tellg();
+		std::vector<char> buffer(filesize);
+		file.seekg(0);
+		file.read(buffer.data(), filesize);
+
+		file.close();
+		return buffer;
 	}
 
 	Engine::Engine(std::string_view app_name)
@@ -50,18 +73,27 @@ namespace raytracing::vulkan {
 	    , physical_device_{surface_->select_physical_device()}
 	    , logical_device_{physical_device_.create_logical_device()}
 	    , command_pool_{[&] {
-		    auto const graphics_queue_idx{logical_device_.get().get_queue_index(vkb::QueueType::graphics)};
-		    if (!graphics_queue_idx) {
-			    std::string message{
-			            std::format("Failed to get graphics queue index: {}", graphics_queue_idx.error().message())
-			    };
-			    throw std::runtime_error{std::move(message)};
-		    }
+		    auto const graphics_queue_idx{logical_device_.get_queue_index(vkb::QueueType::graphics)};
 
-		    return CommandPool{graphics_queue_idx.value(), logical_device_};
+		    return CommandPool{graphics_queue_idx, logical_device_};
 	    }()}
 	    , swapchain_{logical_device_}
-	    , allocator_{instance_.get(), physical_device_, logical_device_} {
+	    , allocator_{instance_.get(), physical_device_, logical_device_}
+	    , vert_shader_module_{[&] {
+		    auto vert_shader_bytecode{read_file("shaders/shader.vert.spv")};
+		    return ShaderModule{logical_device_.get(), vert_shader_bytecode};
+	    }()}
+	    , frag_shader_module_{[&] {
+		    auto frag_shader_bytecode{read_file("shaders/shader.frag.spv")};
+		    return ShaderModule{logical_device_.get(), frag_shader_bytecode};
+	    }()}
+	    , graphics_pipeline_{
+	              logical_device_, swapchain_,
+	              std::vector{
+	                      vert_shader_module_.create_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT),
+	                      frag_shader_module_.create_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT)
+	              }
+	      } {
 	}
 
 	VmaAllocator Engine::get_allocator() const {
@@ -85,6 +117,9 @@ namespace raytracing::vulkan {
 	}
 
 	void Engine::main_loop() {
-		window_.main_loop();
+		while (!glfwWindowShouldClose(window_.get())) {
+			glfwPollEvents();
+			graphics_pipeline_.render();
+		}
 	}
 }// namespace raytracing::vulkan

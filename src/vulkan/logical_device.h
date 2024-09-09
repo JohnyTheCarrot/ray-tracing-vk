@@ -1,6 +1,7 @@
 #ifndef SRC_VULKAN_LOGICAL_DEVICE_H_
 #define SRC_VULKAN_LOGICAL_DEVICE_H_
 
+#include "VkBootstrap.h"
 #include "vkb_raii.h"
 #include <cstdint>
 
@@ -23,7 +24,14 @@ namespace raytracing::vulkan {
 		[[nodiscard]]
 		PhysicalDevice const &get_phys() const noexcept;
 
+		[[nodiscard]]
 		VkQueue get_queue(std::uint32_t index) const noexcept;
+
+		[[nodiscard]]
+		VkQueue get_queue(vkb::QueueType queue_type) const;
+
+		[[nodiscard]]
+		std::uint32_t get_queue_index(vkb::QueueType queue_type) const;
 	};
 }// namespace raytracing::vulkan
 

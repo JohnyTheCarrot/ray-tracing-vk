@@ -9,9 +9,10 @@ namespace raytracing::vulkan {
 	class LogicalDevice;
 
 	class Swapchain final {
-		UniqueVkbSwapchain           swapchain_;
-		std::vector<UniqueImageView> image_views_;
-		LogicalDevice const         *device_;
+		UniqueVkbSwapchain             swapchain_;
+		std::vector<UniqueVkImageView> image_views_;
+		LogicalDevice const           *device_;
+		std::vector<VkImage>           images_;
 
 	public:
 		explicit Swapchain(LogicalDevice const &device, std::optional<Swapchain> &&old = std::nullopt);
@@ -21,6 +22,9 @@ namespace raytracing::vulkan {
 
 		[[nodiscard]]
 		vkb::Swapchain const &get() const noexcept;
+
+		[[nodiscard]]
+		std::vector<UniqueVkImageView> const &get_views() const;
 	};
 }// namespace raytracing::vulkan
 
