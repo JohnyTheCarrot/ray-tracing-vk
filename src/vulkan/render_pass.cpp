@@ -3,6 +3,7 @@
 #include "src/diagnostics.h"
 #include "src/vulkan/command_buffer.h"
 #include "src/vulkan/command_pool.h"
+#include "src/vulkan/fence.h"
 #include "src/vulkan/frame_buffer.h"
 #include "src/vulkan/image_view.h"
 #include "src/vulkan/logical_device.h"
@@ -76,22 +77,12 @@ namespace raytracing::vulkan {
 		    return UniqueVkRenderPass{render_pass, VkRenderPassDestroyer{device.get()}};
 	    }()}
 	    , command_pool_{device.get_queue_index(vkb::QueueType::graphics), device, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}
-	    , command_buffer_{command_pool_.allocate_command_buffer()}
+	    , command_buffers_{command_pool_.allocate_command_buffer(), command_pool_.allocate_command_buffer()}
 	    , swapchain_extent_{swapchain.get().extent}
-	    , fence_{[&] {
-		    VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-		    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-		    VkFence fence{};
-		    if (VkResult const result{vkCreateFence(device.get().device, &fence_info, nullptr, &fence)};
-		        result != VK_SUCCESS) {
-			    throw vulkan::VkException{"Could not create fence", result};
-		    }
-
-		    return vulkan::UniqueVkFence{fence, vulkan::VkFenceDestroyer{device.get().device}};
-	    }()}
-	    , render_finished_semaphore_{create_semaphore(device.get())}
-	    , img_available_semaphore_{create_semaphore(device.get())}
+	    , fences_{create_fence(device.get(), VK_FENCE_CREATE_SIGNALED_BIT),
+	              create_fence(device.get(), VK_FENCE_CREATE_SIGNALED_BIT)}
+	    , render_finished_semaphores_{create_semaphore(device.get()), create_semaphore(device.get())}
+	    , img_available_semaphores_{create_semaphore(device.get()), create_semaphore(device.get())}
 	    , swapchain_{&swapchain}
 	    , device_{&device}
 	    , graphics_queue_{device.get_queue(vkb::QueueType::graphics)}
@@ -131,7 +122,8 @@ namespace raytracing::vulkan {
 
 	// TODO: look into making the pipeline a member instead
 	void RenderPass::record_cmd_buff(std::uint32_t image_idx, VkPipeline pipeline) const {
-		command_buffer_.begin(0);
+		auto const &command_buffer{command_buffers_[current_frame_]};
+		command_buffer.begin(0);
 
 		VkRenderPassBeginInfo render_pass_info{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
 		render_pass_info.renderPass        = render_pass_.get();
@@ -143,9 +135,9 @@ namespace raytracing::vulkan {
 		render_pass_info.clearValueCount = 1;
 		render_pass_info.pClearValues    = &clear_color;
 
-		vkCmdBeginRenderPass(command_buffer_.get(), &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(command_buffer.get(), &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
-		vkCmdBindPipeline(command_buffer_.get(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+		vkCmdBindPipeline(command_buffer.get(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 
 		VkViewport viewport{};
 		viewport.x        = 0.f;
@@ -154,53 +146,55 @@ namespace raytracing::vulkan {
 		viewport.height   = static_cast<float>(swapchain_extent_.height);
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
-		vkCmdSetViewport(command_buffer_.get(), 0, 1, &viewport);
+		vkCmdSetViewport(command_buffer.get(), 0, 1, &viewport);
 
 		VkRect2D scissor{};
 		scissor.offset = {0, 0};
 		scissor.extent = swapchain_extent_;
-		vkCmdSetScissor(command_buffer_.get(), 0, 1, &scissor);
+		vkCmdSetScissor(command_buffer.get(), 0, 1, &scissor);
 
-		vkCmdDraw(command_buffer_.get(), 3, 1, 0, 0);
+		vkCmdDraw(command_buffer.get(), 3, 1, 0, 0);
 
-		vkCmdEndRenderPass(command_buffer_.get());
+		vkCmdEndRenderPass(command_buffer.get());
 
-		command_buffer_.end();
+		command_buffer.end();
 	}
 
-	void RenderPass::render(VkPipeline pipeline) const {
-		VkFence fence{fence_.get()};
-		vkWaitForFences(device_->get(), 1, &fence, 1, std::numeric_limits<std::uint64_t>::max());
-		vkResetFences(device_->get(), 1, &fence);
+	void RenderPass::render(VkPipeline pipeline) {
+		VkFence const current_fence{fences_[current_frame_].get()};
+		vkWaitForFences(device_->get(), 1, &current_fence, 1, std::numeric_limits<std::uint64_t>::max());
+		vkResetFences(device_->get(), 1, &current_fence);
 
+		VkSemaphore   img_available_semaphore{img_available_semaphores_[current_frame_].get()};
 		std::uint32_t image_idx{};
 		if (VkResult const result{vkAcquireNextImageKHR(
 		            device_->get(), swapchain_->get(), std::numeric_limits<std::uint64_t>::max(),
-		            img_available_semaphore_.get(), VK_NULL_HANDLE, &image_idx
+		            img_available_semaphore, VK_NULL_HANDLE, &image_idx
 		    )};
 		    result != VK_SUCCESS) {
 			throw VkException{"Failed to acquire next image from swapchain", result};
 		}
 
-		vkResetCommandBuffer(command_buffer_.get(), 0);
+		auto const &command_buffer{command_buffers_[current_frame_]};
+		vkResetCommandBuffer(command_buffer.get(), 0);
 		record_cmd_buff(image_idx, pipeline);
 
-		VkSemaphore          semaphore{img_available_semaphore_.get()};
+		VkSemaphore          semaphore{img_available_semaphores_[current_frame_].get()};
 		VkPipelineStageFlags wait_stage{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-		VkCommandBuffer      command_buffer{command_buffer_.get()};
 
 		VkSubmitInfo submit_info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
 		submit_info.waitSemaphoreCount = 1;
 		submit_info.pWaitSemaphores    = &semaphore;
 		submit_info.pWaitDstStageMask  = &wait_stage;
 		submit_info.commandBufferCount = 1;
-		submit_info.pCommandBuffers    = &command_buffer;
+		VkCommandBuffer cmd_buf_raw{command_buffer.get()};
+		submit_info.pCommandBuffers = &cmd_buf_raw;
 
-		VkSemaphore signal_semaphore{render_finished_semaphore_.get()};
+		VkSemaphore signal_semaphore{render_finished_semaphores_[current_frame_].get()};
 		submit_info.signalSemaphoreCount = 1;
 		submit_info.pSignalSemaphores    = &signal_semaphore;
 
-		command_buffer_.submit(fence_.get(), submit_info);
+		command_buffer.submit(current_fence, submit_info);
 
 		VkPresentInfoKHR present_info{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
 		present_info.waitSemaphoreCount = 1;
@@ -212,5 +206,7 @@ namespace raytracing::vulkan {
 		present_info.pImageIndices  = &image_idx;
 
 		vkQueuePresentKHR(present_queue_, &present_info);
+
+		current_frame_ = (current_frame_ + 1) % max_frames_in_flight;
 	}
 }// namespace raytracing::vulkan

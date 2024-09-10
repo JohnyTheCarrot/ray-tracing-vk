@@ -92,6 +92,8 @@ set(SOURCE_FILES
         src/vulkan/frame_buffer.cpp
         src/vulkan/semaphore.h
         src/vulkan/semaphore.cpp
+        src/vulkan/fence.h
+        src/vulkan/fence.cpp
         src/mesh.h
         src/mesh.cpp
         src/scene.h

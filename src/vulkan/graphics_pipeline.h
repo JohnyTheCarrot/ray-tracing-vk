@@ -40,7 +40,7 @@ namespace raytracing::vulkan {
 		        std::vector<VkPipelineShaderStageCreateInfo> const &shader_stages
 		);
 
-		void render() const;
+		void render();
 	};
 }// namespace raytracing::vulkan
 

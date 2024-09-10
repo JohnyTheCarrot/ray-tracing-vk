@@ -41,7 +41,7 @@ namespace raytracing::vulkan {
 
 		void submit(VkFence optional_fence, VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO}) const;
 
-		void submit_and_wait(VkFence mandatory_fence, VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO}) const;
+		void submit_and_wait(VkFence optional_fence, VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO}) const;
 
 		[[nodiscard]]
 		VkCommandBuffer get() const;

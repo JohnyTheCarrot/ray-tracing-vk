@@ -1,7 +1,7 @@
 #include "command_buffer.h"
 #include "src/diagnostics.h"
+#include "src/vulkan/fence.h"
 #include "src/vulkan/vk_exception.h"
-#include "vkb_raii.h"
 #include <cassert>
 #include <limits>
 #include <vulkan/vulkan_core.h>
@@ -49,21 +49,15 @@ namespace raytracing::vulkan {
 		}
 	}
 
-	void CommandBuffer::submit_and_wait(VkFence mandatory_fence, VkSubmitInfo submit_info) const {
+	void CommandBuffer::submit_and_wait(VkFence optional_fence, VkSubmitInfo submit_info) const {
 		UniqueVkFence unique_fence{[&] {
-			if (mandatory_fence != VK_NULL_HANDLE) {
+			if (optional_fence != VK_NULL_HANDLE) {
 				return UniqueVkFence{VK_NULL_HANDLE, VkFenceDestroyer{VK_NULL_HANDLE}};
 			}
 
-			VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-			VkFence           fence{};
-			if (VkResult const result{vkCreateFence(device_, &fence_info, nullptr, &fence)}; result != VK_SUCCESS) {
-				throw VkException{"Could not create fence", result};
-			}
-
-			return UniqueVkFence{fence, VkFenceDestroyer{device_}};
+			return create_fence(device_);
 		}()};
-		VkFence       fence{mandatory_fence == VK_NULL_HANDLE ? unique_fence.get() : mandatory_fence};
+		VkFence       fence{optional_fence == VK_NULL_HANDLE ? unique_fence.get() : optional_fence};
 
 		submit(fence, submit_info);
 

@@ -24,15 +24,6 @@ namespace raytracing::vulkan {
 		vmaDestroyAllocator(allocator);
 	}
 
-	VkFenceDestroyer::VkFenceDestroyer(VkDevice device)
-	    : device_{device} {
-	}
-
-	void VkFenceDestroyer::operator()(VkFence fence) {
-		Logger::get_instance().log(LogLevel::Debug, "Destroying fence");
-		vkDestroyFence(device_, fence, nullptr);
-	}
-
 	VkShaderModuleDestroyer::VkShaderModuleDestroyer(VkDevice device)
 	    : device_{device} {
 	}

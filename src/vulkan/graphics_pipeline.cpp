@@ -120,7 +120,7 @@ namespace raytracing::vulkan {
 	    }()} {
 	}
 
-	void GraphicsPipeline::render() const {
+	void GraphicsPipeline::render() {
 		render_pass_.render(pipeline_.get());
 	}
 }// namespace raytracing::vulkan

@@ -1,4 +1,5 @@
 #include "engine.h"
+#include <vulkan/vulkan_core.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -121,5 +122,7 @@ namespace raytracing::vulkan {
 			glfwPollEvents();
 			graphics_pipeline_.render();
 		}
+
+		vkDeviceWaitIdle(logical_device_.get());
 	}
 }// namespace raytracing::vulkan

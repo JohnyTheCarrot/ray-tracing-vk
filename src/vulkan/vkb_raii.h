@@ -105,17 +105,6 @@ namespace raytracing::vulkan {
 
 	using UniqueVmaAllocator = UniqueContainer<VmaAllocator, VmaAllocatorDestroyer>;
 
-	class VkFenceDestroyer final {
-		VkDevice device_;
-
-	public:
-		explicit VkFenceDestroyer(VkDevice device);
-
-		void operator()(VkFence fence);
-	};
-
-	using UniqueVkFence = std::unique_ptr<VkFence_T, VkFenceDestroyer>;
-
 	class VkShaderModuleDestroyer final {
 		VkDevice device_;
 

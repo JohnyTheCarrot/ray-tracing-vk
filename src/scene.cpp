@@ -5,6 +5,7 @@
 #include "src/vulkan/command_buffer.h"
 #include "src/vulkan/command_pool.h"
 #include "src/vulkan/ext_fns.h"
+#include "src/vulkan/fence.h"
 #include "src/vulkan/logical_device.h"
 #include "src/vulkan/phys_device.h"
 #include "src/vulkan/vkb_raii.h"
@@ -264,11 +265,8 @@ namespace raytracing {
 		if (asset.error() != fastgltf::Error::None) {
 			throw std::runtime_error{"Couldn't parse GLTF/GLB file"};
 		}
-		std::vector<vulkan::UniqueVkFence> fences;
 		// vulkan::CommandBuffer              command_buffer{command_pool.allocate_command_buffer()};
 		// command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-		fences.reserve(asset->meshes.size());
 
 		for (auto mesh_idx{0}; mesh_idx < asset->meshes.size(); ++mesh_idx) {
 			auto const &mesh{asset->meshes[mesh_idx]};
