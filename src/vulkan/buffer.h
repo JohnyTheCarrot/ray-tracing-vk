@@ -9,7 +9,7 @@
 #include "vkb_raii.h"
 
 namespace raytracing::vulkan {
-	class CommandBuffer;
+	class CommandPool;
 
 	class BufferDestroyer final {
 		VmaAllocator  allocator_;
@@ -18,7 +18,7 @@ namespace raytracing::vulkan {
 	public:
 		BufferDestroyer(VmaAllocator allocator, VmaAllocation allocation);
 
-		void operator()(VkBuffer buffer);
+		void operator()(VkBuffer buffer) const;
 	};
 
 	using UniqueVkBuffer = std::unique_ptr<VkBuffer_T, BufferDestroyer>;
@@ -31,17 +31,14 @@ namespace raytracing::vulkan {
 
 	public:
 		Buffer(VkDevice device, VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage_flags,
-		       VmaAllocationCreateFlags alloc_flags, std::optional<VkDeviceSize> alignment = std::nullopt);
+		       VmaAllocationCreateFlags alloc_flags, VkMemoryPropertyFlags required_memory_flags = 0,
+		       std::optional<VkDeviceSize> alignment = std::nullopt);
 
 		template<class V>
 		Buffer(VkDevice device, VmaAllocator allocator, std::span<V> span, VkBufferUsageFlags usage_flags,
-		       std::optional<VkDeviceSize> alignment = std::nullopt)
-		    : Buffer{device,
-		             allocator,
-		             span.size_bytes(),
-		             usage_flags,
-		             VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-		             alignment} {
+		       VmaAllocationCreateFlags alloc_flags        = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+		       VkMemoryPropertyFlags required_memory_flags = 0, std::optional<VkDeviceSize> alignment = std::nullopt)
+		    : Buffer{device, allocator, span.size_bytes(), usage_flags, alloc_flags, required_memory_flags, alignment} {
 			if (VkResult const result{
 			            vmaCopyMemoryToAllocation(allocator, span.data(), allocation_, 0, span.size_bytes())
 			    };
@@ -59,7 +56,7 @@ namespace raytracing::vulkan {
 		[[nodiscard]]
 		VkDeviceSize get_size() const noexcept;
 
-		void copy_to(CommandBuffer const &command_buffer, Buffer &buffer) const;
+		void copy_to(CommandPool const &command_pool, Buffer &buffer) const;
 	};
 }// namespace raytracing::vulkan
 

@@ -7,7 +7,6 @@
 #include "src/vulkan/ext_fns.h"
 #include "src/vulkan/logical_device.h"
 #include "src/vulkan/phys_device.h"
-#include "src/vulkan/vk_exception.h"
 #include "src/vulkan/vkb_raii.h"
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
@@ -21,9 +20,9 @@
 
 namespace raytracing {
 	void Scene::cmd_create_blas(
-	        VkDevice device, VkPhysicalDevice phys_device, VmaAllocator allocator,
-	        std::vector<std::uint32_t> const &indices, std::vector<BuildAccelerationStructure> &build_structures,
-	        VkDeviceAddress scratch_address
+	        vulkan::CommandBuffer const &command_buffer, VkDevice device, VkPhysicalDevice phys_device,
+	        VmaAllocator allocator, std::vector<std::uint32_t> const &indices,
+	        std::vector<BuildAccelerationStructure> &build_structures, VkDeviceAddress scratch_address
 	) const {
 		for (auto idx: indices) {
 			VkAccelerationStructureCreateInfoKHR create_info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
@@ -31,13 +30,30 @@ namespace raytracing {
 			create_info.size = build_structures[idx].size_info_.accelerationStructureSize;
 
 			build_structures[idx].acc_ = {device, allocator, create_info};
+
+			build_structures[idx].build_info_.dstAccelerationStructure  = build_structures[idx].acc_.value().get_acc();
+			build_structures[idx].build_info_.scratchData.deviceAddress = scratch_address;
+
+			vulkan::ext::vkCmdBuildAccelerationStructuresKHR(
+			        device, command_buffer.get(), 1, &build_structures[idx].build_info_,
+			        &build_structures[idx].range_info_
+			);
+
+			VkMemoryBarrier barrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+			barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+			barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+
+			vkCmdPipelineBarrier(
+			        command_buffer.get(), VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+			        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &barrier, 0, nullptr, 0, nullptr
+			);
 		}
 	}
 
 	std::vector<Scene::BuildAccelerationStructure> Scene::create_blas(
-	        VkPhysicalDevice phys_device, vulkan::CommandBuffer const &command_buffer, VmaAllocator allocator,
+	        VkPhysicalDevice phys_device, vulkan::CommandPool const &command_pool, VmaAllocator allocator,
 	        VkDevice device
-	) const {
+	) {
 		std::vector<MeshBlasInput> inputs(meshes_.size());
 		std::transform(meshes_.cbegin(), meshes_.cend(), inputs.begin(), [&](Mesh const &mesh) {
 			return mesh.to_blas_input();
@@ -82,7 +98,7 @@ namespace raytracing {
 			build_structures.emplace_back(build_info, size_info, range_info);
 		}
 
-		vulkan::Buffer scratch_buffer{
+		vulkan::Buffer const scratch_buffer{
 		        device, allocator, max_scratch_size,
 		        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 0
 		};
@@ -100,7 +116,13 @@ namespace raytracing {
 				continue;
 			}
 
-			cmd_create_blas(device, phys_device, allocator, indices, build_structures, scratch_device_address);
+			auto const command_buffer{command_pool.allocate_command_buffer()};
+			command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+			cmd_create_blas(
+			        command_buffer, device, phys_device, allocator, indices, build_structures, scratch_device_address
+			);
+			command_buffer.end();
+			command_buffer.submit_and_wait(VK_NULL_HANDLE);
 
 			batch_size = 0;
 			indices.clear();
@@ -110,7 +132,7 @@ namespace raytracing {
 	}
 
 	vulkan::AccelerationStructure Scene::create_tlas(
-	        vulkan::LogicalDevice const &device, VmaAllocator allocator, vulkan::CommandBuffer const &command_buffer,
+	        vulkan::LogicalDevice const &device, VmaAllocator allocator, vulkan::CommandPool const &command_pool,
 	        std::vector<BuildAccelerationStructure> const &blas, std::vector<MeshInstance> const &mesh_instances
 	) {
 		std::vector<VkAccelerationStructureInstanceKHR> instances{};
@@ -144,13 +166,16 @@ namespace raytracing {
 		vulkan::Buffer instances_buffer{
 		        device.get().device, allocator, std::span<VkAccelerationStructureInstanceKHR>{instances},
 		        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-		                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
+		                VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+		        VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
 		};
 
 		VkMemoryBarrier barrier{VK_STRUCTURE_TYPE_MEMORY_BARRIER};
 		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
 
+		auto const command_buffer{command_pool.allocate_command_buffer()};
+		command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 		vkCmdPipelineBarrier(
 		        command_buffer.get(), VK_PIPELINE_STAGE_TRANSFER_BIT,
 		        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &barrier, 0, nullptr, 0, nullptr
@@ -200,6 +225,7 @@ namespace raytracing {
                 size_info.buildScratchSize,
                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                 0,
+                0,
                 scratch_alignment
         };
 		VkDeviceAddress scratch_buff_addr{scratch_buffer.get_device_address()};
@@ -213,6 +239,8 @@ namespace raytracing {
 		vulkan::ext::vkCmdBuildAccelerationStructuresKHR(
 		        device.get().device, command_buffer.get(), 1, &build_geometry_info, &build_offset_info_ptr
 		);
+		command_buffer.end();
+		command_buffer.submit_and_wait(VK_NULL_HANDLE);
 
 		return tlas;
 	}
@@ -237,8 +265,8 @@ namespace raytracing {
 			throw std::runtime_error{"Couldn't parse GLTF/GLB file"};
 		}
 		std::vector<vulkan::UniqueVkFence> fences;
-		vulkan::CommandBuffer              command_buffer{command_pool.allocate_command_buffer()};
-		command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+		// vulkan::CommandBuffer              command_buffer{command_pool.allocate_command_buffer()};
+		// command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
 		fences.reserve(asset->meshes.size());
 
@@ -293,7 +321,7 @@ namespace raytracing {
 			        "Uploading mesh \"{}\" with {} indices and {} vertices", mesh.name, indices.size(), vertices.size()
 			)};
 			Logger::get_instance().log(LogLevel::Debug, std::move(debug_msg));
-			meshes_.emplace_back(device.get().device, allocator, command_buffer, indices, vertices);
+			meshes_.emplace_back(device.get().device, allocator, command_pool, indices, vertices);
 		}
 
 		for (auto const &node: asset->nodes) {
@@ -345,21 +373,24 @@ namespace raytracing {
 			mesh_instances.emplace_back(node.local_matrix_, node.mesh_idx_.value());
 		}
 
-		blas_ = create_blas(device.get().physical_device, command_buffer, allocator, device.get().device);
-		tlas_ = create_tlas(device, allocator, command_buffer, blas_, mesh_instances);
+		Logger::get_instance().log(LogLevel::Debug, "Creating blas");
+		blas_ = create_blas(device.get().physical_device, command_pool, allocator, device.get().device);
+		Logger::get_instance().log(LogLevel::Debug, "Creating tlas");
+		tlas_ = create_tlas(device, allocator, command_pool, blas_, mesh_instances);
+		Logger::get_instance().log(LogLevel::Debug, "Tlas created");
 
-		vulkan::UniqueVkFence fence{[&] {
-			VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-			VkFence           fence{};
-			if (VkResult const result{vkCreateFence(device.get().device, &fence_info, nullptr, &fence)};
-			    result != VK_SUCCESS) {
-				throw vulkan::VkException{"Could not create fence", result};
-			}
+		/*vulkan::UniqueVkFence fence{[&] {*/
+		/*	VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};*/
+		/*	VkFence           fence{};*/
+		/*	if (VkResult const result{vkCreateFence(device.get().device, &fence_info, nullptr, &fence)};*/
+		/*	    result != VK_SUCCESS) {*/
+		/*		throw vulkan::VkException{"Could not create fence", result};*/
+		/*	}*/
+		/**/
+		/*	return vulkan::UniqueVkFence{fence, vulkan::VkFenceDestroyer{device.get().device}};*/
+		/*}()};*/
 
-			return vulkan::UniqueVkFence{fence, vulkan::VkFenceDestroyer{device.get().device}};
-		}()};
-
-		command_buffer.end();
-		command_buffer.submit_and_wait(fence.get());
+		// command_buffer.end();
+		// command_buffer.submit_and_wait(fence.get());
 	}
 }// namespace raytracing

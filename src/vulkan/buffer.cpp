@@ -1,6 +1,8 @@
 #include "buffer.h"
 #include "command_buffer.h"
-#include <cstdint>
+#include "command_pool.h"
+#include "src/diagnostics.h"
+
 #include <optional>
 #include <vulkan/vulkan_core.h>
 
@@ -10,14 +12,15 @@ namespace raytracing::vulkan {
 	    , allocation_{allocation} {
 	}
 
-	void BufferDestroyer::operator()(VkBuffer buffer) {
-		/*Logger::get_instance().log(LogLevel::Debug, "Destroying VkBuffer");*/
+	void BufferDestroyer::operator()(VkBuffer buffer) const {
+		/*Logger::get_instance().log(LogLevel::Debug, "Destroying buffer");*/
 		vmaDestroyBuffer(allocator_, buffer, allocation_);
 	}
 
 	Buffer::Buffer(
 	        VkDevice device, VmaAllocator allocator, VkDeviceSize size, VkBufferUsageFlags usage_flags,
-	        VmaAllocationCreateFlags alloc_flags, std::optional<VkDeviceSize> alignment
+	        VmaAllocationCreateFlags alloc_flags, VkMemoryPropertyFlags required_memory_flags,
+	        std::optional<VkDeviceSize> alignment
 	)
 	    : buffer_{[&] {
 		    VkBufferCreateInfo buffer_info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
@@ -25,8 +28,9 @@ namespace raytracing::vulkan {
 		    buffer_info.usage = usage_flags;
 
 		    VmaAllocationCreateInfo alloc_info{};
-		    alloc_info.usage = VMA_MEMORY_USAGE_AUTO;
-		    alloc_info.flags = alloc_flags;
+		    alloc_info.usage         = VMA_MEMORY_USAGE_AUTO;
+		    alloc_info.flags         = alloc_flags;
+		    alloc_info.requiredFlags = required_memory_flags;
 
 		    VkBuffer buffer{};
 
@@ -56,13 +60,17 @@ namespace raytracing::vulkan {
 		return buffer_.get();
 	}
 
-	void Buffer::copy_to(CommandBuffer const &command_buffer, Buffer &buffer) const {
+	void Buffer::copy_to(CommandPool const &command_pool, Buffer &buffer) const {
 		VkBufferCopy copy_region{};
 		copy_region.srcOffset = 0;
 		copy_region.dstOffset = 0;
 		copy_region.size      = size_;
 
+		auto const command_buffer{command_pool.allocate_command_buffer()};
+		command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 		vkCmdCopyBuffer(command_buffer.get(), buffer_.get(), buffer.get(), 1, &copy_region);
+		command_buffer.end();
+		command_buffer.submit_and_wait(VK_NULL_HANDLE);
 	}
 
 	VkDeviceAddress Buffer::get_device_address() const {

@@ -11,7 +11,7 @@ namespace raytracing::vulkan {
 	        VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,   VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
 	        VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME, VK_KHR_SPIRV_1_4_EXTENSION_NAME,
 	        VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
-	        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+	        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME
 	};
 
 	VkSurfaceDestroyer::VkSurfaceDestroyer(VkInstance instance)
@@ -35,10 +35,13 @@ namespace raytracing::vulkan {
 		vk12_features.descriptorIndexing     = true;
 		vk12_features.bufferDeviceAddress    = true;
 
-		VkPhysicalDeviceAccelerationStructureFeaturesKHR accelFeature{
+		VkPhysicalDeviceAccelerationStructureFeaturesKHR accel_feature{
 		        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR
 		};
-		vk12_features.pNext = &accelFeature;
+		accel_feature.accelerationStructureHostCommands = VK_TRUE;
+		accel_feature.accelerationStructure             = VK_TRUE;
+
+		vk12_features.pNext = &accel_feature;
 
 		auto device_selector_return = phys_device_selector.set_surface(surface_.get())
 		                                      .prefer_gpu_device_type(vkb::PreferredDeviceType::integrated)

@@ -1,6 +1,8 @@
 #include "acc_struct.h"
+#include "src/diagnostics.h"
 #include "src/vulkan/ext_fns.h"
 #include "src/vulkan/vk_exception.h"
+#include <format>
 #include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
@@ -16,8 +18,12 @@ namespace raytracing::vulkan {
 	AccelerationStructure::AccelerationStructure(
 	        VkDevice device, VmaAllocator allocator, VkAccelerationStructureCreateInfoKHR const &create_info
 	)
-	    : buffer_{device, allocator, create_info.size,
-	              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, 0}
+	    : buffer_{device,
+	              allocator,
+	              create_info.size,
+	              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+	              0,
+	              VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT}
 	    , acc_{[&] {
 		    VkAccelerationStructureCreateInfoKHR complete_create_info{create_info};
 

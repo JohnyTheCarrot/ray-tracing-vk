@@ -10,7 +10,7 @@
 
 namespace raytracing {
 	namespace vulkan {
-		class CommandBuffer;
+		class CommandPool;
 	}
 
 	using MeshIndex = std::uint32_t;
@@ -25,7 +25,7 @@ namespace raytracing {
 		vulkan::Buffer vertex_buffer_;
 
 	public:
-		Mesh(VkDevice device, VmaAllocator allocator, vulkan::CommandBuffer const &command_buffer,
+		Mesh(VkDevice device, VmaAllocator allocator, vulkan::CommandPool const &command_pool,
 		     std::vector<MeshIndex> &indices, std::vector<Vertex> &vertices);
 
 		[[nodiscard]]

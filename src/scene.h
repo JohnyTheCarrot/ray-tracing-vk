@@ -56,22 +56,21 @@ namespace raytracing {
 		std::optional<vulkan::AccelerationStructure> tlas_{};
 
 		void cmd_create_blas(
-		        VkDevice device, VkPhysicalDevice phys_device, VmaAllocator allocator,
-		        std::vector<std::uint32_t> const &indices, std::vector<BuildAccelerationStructure> &build_structures,
-		        VkDeviceAddress scratch_address
+		        vulkan::CommandBuffer const &command_buffer, VkDevice device, VkPhysicalDevice phys_device,
+		        VmaAllocator allocator, std::vector<std::uint32_t> const &indices,
+		        std::vector<BuildAccelerationStructure> &build_structures, VkDeviceAddress scratch_address
 		) const;
 
 		[[nodiscard]]
 		std::vector<BuildAccelerationStructure> create_blas(
-		        VkPhysicalDevice phys_device, vulkan::CommandBuffer const &command_buffer, VmaAllocator allocator,
+		        VkPhysicalDevice phys_device, vulkan::CommandPool const &command_pool, VmaAllocator allocator,
 		        VkDevice device
-		) const;
+		);
 
 		[[nodiscard]]
 		vulkan::AccelerationStructure create_tlas(
-		        vulkan::LogicalDevice const &device, VmaAllocator allocator,
-		        vulkan::CommandBuffer const &command_buffer, std::vector<BuildAccelerationStructure> const &blas,
-		        std::vector<MeshInstance> const &mesh_instances
+		        vulkan::LogicalDevice const &device, VmaAllocator allocator, vulkan::CommandPool const &command_pool,
+		        std::vector<BuildAccelerationStructure> const &blas, std::vector<MeshInstance> const &mesh_instances
 		);
 
 	public:

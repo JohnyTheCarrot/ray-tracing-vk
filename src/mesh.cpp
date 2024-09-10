@@ -17,7 +17,7 @@ namespace raytracing {
 	};
 
 	Mesh::Mesh(
-	        VkDevice device, VmaAllocator allocator, vulkan::CommandBuffer const &command_buffer,
+	        VkDevice device, VmaAllocator allocator, vulkan::CommandPool const &command_pool,
 	        std::vector<std::uint32_t> &indices, std::vector<Vertex> &vertices
 	)
 	    : index_buffer_{[&] {
@@ -25,7 +25,7 @@ namespace raytracing {
 		    vulkan::Buffer       staging_buffer{device, allocator, span, VK_BUFFER_USAGE_TRANSFER_SRC_BIT};
 		    vulkan::Buffer       device_local_buffer{device, allocator, span.size_bytes(), index_buffer_usage_flags, 0};
 
-		    staging_buffer.copy_to(command_buffer, device_local_buffer);
+		    staging_buffer.copy_to(command_pool, device_local_buffer);
 
 		    return device_local_buffer;
 	    }()}
@@ -34,17 +34,17 @@ namespace raytracing {
 		    vulkan::Buffer    staging_buffer{device, allocator, span, VK_BUFFER_USAGE_TRANSFER_SRC_BIT};
 		    vulkan::Buffer    device_local_buffer{device, allocator, span.size_bytes(), vertex_buffer_usage_flags, 0};
 
-		    staging_buffer.copy_to(command_buffer, device_local_buffer);
+		    staging_buffer.copy_to(command_pool, device_local_buffer);
 
 		    return device_local_buffer;
 	    }()} {
 	}
 
 	MeshBlasInput Mesh::to_blas_input() const {
-		VkDeviceAddress index_buff_address{index_buffer_.get_device_address()};
-		VkDeviceAddress vertex_buff_address{vertex_buffer_.get_device_address()};
+		VkDeviceAddress const index_buff_address{index_buffer_.get_device_address()};
+		VkDeviceAddress const vertex_buff_address{vertex_buffer_.get_device_address()};
 
-		auto max_primitive_count{index_buffer_.get_size() / sizeof(MeshIndex)};
+		auto const max_primitive_count{index_buffer_.get_size() / sizeof(MeshIndex) / 3};
 
 		VkAccelerationStructureGeometryTrianglesDataKHR triangles{
 		        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR
