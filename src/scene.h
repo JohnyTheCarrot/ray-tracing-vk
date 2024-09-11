@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
-#include <unordered_map>
 
 struct VkDevice_T;
 using VkDevice = VkDevice_T *;
@@ -37,6 +36,8 @@ namespace raytracing {
 		std::optional<std::uint32_t> mesh_idx_{};
 		SceneNode                   *parent_;
 	};
+
+	enum class SceneFormat { Gltf };
 
 	class Scene final {
 		struct BuildAccelerationStructure final {

@@ -9,7 +9,7 @@ namespace raytracing::vulkan {
 		vkb::destroy_instance(instance);
 	}
 
-	void VkbDeviceDestroyer::operator()(vkb::Device const &device) {
+	void VkbDeviceDestroyer::operator()(vkb::Device const &device) const {
 		Logger::get_instance().log(LogLevel::Debug, "Destroying logical device");
 		vkb::destroy_device(device);
 	}

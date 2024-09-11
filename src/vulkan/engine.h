@@ -1,51 +1,35 @@
 #ifndef SRC_VULKAN_ENGINE_H_
 #define SRC_VULKAN_ENGINE_H_
 
-#include "src/vulkan/allocator.h"
-#include "src/vulkan/command_pool.h"
-#include "src/vulkan/graphics_pipeline.h"
-#include "src/vulkan/logical_device.h"
-#include "src/vulkan/phys_device.h"
-#include "src/vulkan/shader_module.h"
+#include "src/scene.h"
+#include "src/vulkan/device_manager.h"
+#include "src/vulkan/rasterizer.h"
 #include "src/vulkan/swapchain.h"
-#include "src/vulkan/vkb_raii.h"
-#include "src/window.h"
+#include "src/vulkan/vk_core.h"
+#include <filesystem>
 
 namespace raytracing::vulkan {
+	class CommandPool;
+
+	class LogicalDevice;
+
 	class Engine final {
-		UniqueVkbInstance instance_;
-		Window            window_;
-		vulkan::Surface  *surface_;
-		PhysicalDevice    physical_device_;
-		LogicalDevice     logical_device_;
-		CommandPool       command_pool_;
-		Swapchain         swapchain_;
-		Allocator         allocator_;
-		ShaderModule      vert_shader_module_;
-		ShaderModule      frag_shader_module_;
-		GraphicsPipeline  graphics_pipeline_;
+		VulkanCore    core_;
+		DeviceManager device_manager_;
+
+		Swapchain  swapchain_;
+		Rasterizer rasterizer_;
 
 	public:
 		explicit Engine(std::string_view app_name);
 
 		[[nodiscard]]
-		VmaAllocator get_allocator() const;
+		DeviceManager const &get_device_manager() const;
 
 		[[nodiscard]]
-		LogicalDevice &get_logical_device();
-
-		[[nodiscard]]
-		LogicalDevice const &get_logical_device() const;
-
-		[[nodiscard]]
-		CommandPool &get_command_pool();
-
-		[[nodiscard]]
-		CommandPool const &get_command_pool() const;
+		Scene load_scene(std::filesystem::path const &path, SceneFormat format) const;
 
 		void main_loop();
-
-		void copy_buffer(VkBuffer src, VkBuffer dst, VkDeviceSize size) const;
 	};
 }// namespace raytracing::vulkan
 

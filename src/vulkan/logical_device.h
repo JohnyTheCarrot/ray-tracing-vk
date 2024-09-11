@@ -32,6 +32,8 @@ namespace raytracing::vulkan {
 
 		[[nodiscard]]
 		std::uint32_t get_queue_index(vkb::QueueType queue_type) const;
+
+		void wait_idle() const;
 	};
 }// namespace raytracing::vulkan
 

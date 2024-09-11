@@ -46,4 +46,8 @@ namespace raytracing::vulkan {
 
 		return queue_idx.value();
 	}
+
+	void LogicalDevice::wait_idle() const {
+		vkDeviceWaitIdle(device_.get());
+	}
 }// namespace raytracing::vulkan

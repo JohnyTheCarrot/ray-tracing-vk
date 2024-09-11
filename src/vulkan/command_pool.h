@@ -1,6 +1,7 @@
 #ifndef SRC_VULKAN_COMMAND_POOL_H_
 #define SRC_VULKAN_COMMAND_POOL_H_
 
+#include "VkBootstrap.h"
 #include "src/vulkan/command_buffer.h"
 #include <cstdint>
 #include <memory>
@@ -33,7 +34,7 @@ namespace raytracing::vulkan {
 
 	public:
 		CommandPool(
-		        std::uint32_t queue_family_idx, LogicalDevice const &device,
+		        vkb::QueueType queue_type, LogicalDevice const &device,
 		        VkCommandPoolCreateFlags flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
 		);
 

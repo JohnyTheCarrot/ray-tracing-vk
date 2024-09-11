@@ -48,7 +48,7 @@ namespace raytracing::vulkan {
 		LogicalDevice const                                *device_;
 		VkQueue                                             graphics_queue_;
 		VkQueue                                             present_queue_;
-		std::uint32_t                                       current_frame_{0};
+		mutable std::uint32_t                               current_frame_{0};
 
 	public:
 		RenderPass(LogicalDevice const &device, Swapchain const &swapchain);
@@ -58,7 +58,7 @@ namespace raytracing::vulkan {
 
 		void record_cmd_buff(std::uint32_t image_idx, VkPipeline pipeline) const;
 
-		void render(VkPipeline pipeline);
+		void render(VkPipeline pipeline) const;
 	};
 }// namespace raytracing::vulkan
 

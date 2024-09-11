@@ -7,12 +7,6 @@
 #include <vector>
 #include <vulkan/vulkan_core.h>
 
-struct VkDevice_T;
-using VkDevice = VkDevice_T *;
-
-struct VkPipeline_T;
-using VkPipeline = VkPipeline_T *;
-
 namespace raytracing::vulkan {
 	class Swapchain;
 
@@ -40,7 +34,7 @@ namespace raytracing::vulkan {
 		        std::vector<VkPipelineShaderStageCreateInfo> const &shader_stages
 		);
 
-		void render();
+		void render() const;
 	};
 }// namespace raytracing::vulkan
 

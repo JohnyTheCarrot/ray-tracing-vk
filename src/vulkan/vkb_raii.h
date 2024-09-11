@@ -86,7 +86,7 @@ namespace raytracing::vulkan {
 
 	class VkbDeviceDestroyer final {
 	public:
-		void operator()(vkb::Device const &device);
+		void operator()(vkb::Device const &device) const;
 	};
 
 	using UniqueVkbDevice = UniqueContainer<vkb::Device, VkbDeviceDestroyer>;

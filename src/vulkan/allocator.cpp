@@ -7,7 +7,7 @@
 
 namespace raytracing::vulkan {
 	Allocator::Allocator(
-	        vkb::Instance const &instance, PhysicalDevice const &physical_device, LogicalDevice const &logical_device
+	        VkInstance instance, PhysicalDevice const &physical_device, LogicalDevice const &logical_device
 	)
 	    : allocator_{[&] {
 		    VmaVulkanFunctions vulkan_functions{};
@@ -16,7 +16,7 @@ namespace raytracing::vulkan {
 		    allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_2;
 		    allocator_create_info.physicalDevice   = physical_device.get().physical_device;
 		    allocator_create_info.device           = logical_device.get().device;
-		    allocator_create_info.instance         = instance.instance;
+		    allocator_create_info.instance         = instance;
 		    allocator_create_info.flags            = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
 		    VmaAllocator allocator{};

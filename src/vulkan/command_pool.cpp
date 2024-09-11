@@ -1,4 +1,5 @@
 #include "command_pool.h"
+#include "VkBootstrap.h"
 #include "logical_device.h"
 #include "src/diagnostics.h"
 #include "src/vulkan/command_buffer.h"
@@ -17,13 +18,11 @@ namespace raytracing::vulkan {
 		vkDestroyCommandPool(device_, command_pool, nullptr);
 	}
 
-	CommandPool::CommandPool(
-	        std::uint32_t queue_family_idx, LogicalDevice const &device, VkCommandPoolCreateFlags flags
-	)
+	CommandPool::CommandPool(vkb::QueueType queue_type, LogicalDevice const &device, VkCommandPoolCreateFlags flags)
 	    : command_pool_{[&] {
 		    VkCommandPoolCreateInfo pool_info{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
 		    pool_info.flags            = flags;
-		    pool_info.queueFamilyIndex = queue_family_idx;
+		    pool_info.queueFamilyIndex = device.get_queue_index(queue_type);
 
 		    VkCommandPool command_pool{};
 		    if (VkResult const result{vkCreateCommandPool(device.get().device, &pool_info, nullptr, &command_pool)};
@@ -34,7 +33,7 @@ namespace raytracing::vulkan {
 		    return UniqueVkCommandPool{command_pool, CommandPoolDestroyer{device.get().device}};
 	    }()}
 	    , device_{&device}
-	    , queue_{device.get_queue(queue_family_idx)} {
+	    , queue_{device.get_queue(queue_type)} {
 	}
 
 	std::vector<CommandBuffer> CommandPool::allocate_command_buffers(std::size_t num) const {

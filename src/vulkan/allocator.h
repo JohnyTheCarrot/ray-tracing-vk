@@ -10,14 +10,12 @@ namespace raytracing::vulkan {
 
 	class Instance;
 
+	// TODO: not much point for this class to exist over just a function that returns a newly made UniqueVmaAllocator
 	class Allocator final {
 		UniqueVmaAllocator allocator_;
 
 	public:
-		Allocator(
-		        vkb::Instance const &instance, PhysicalDevice const &physical_device,
-		        LogicalDevice const &logical_device
-		);
+		Allocator(VkInstance instance, PhysicalDevice const &physical_device, LogicalDevice const &logical_device);
 
 		[[nodiscard]]
 		VmaAllocator get() const noexcept;

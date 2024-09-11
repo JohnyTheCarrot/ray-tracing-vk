@@ -31,7 +31,9 @@ namespace raytracing {
 		Window(vkb::Instance &instance, int width, int height, std::string_view title);
 
 		[[nodiscard]]
-		GLFWwindow *get() const noexcept;
+		bool get_should_close() const;
+
+		void poll_events() const;
 
 		[[nodiscard]]
 		vulkan::Surface &get_surface() noexcept;

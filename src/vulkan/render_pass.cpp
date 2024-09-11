@@ -76,7 +76,7 @@ namespace raytracing::vulkan {
 
 		    return UniqueVkRenderPass{render_pass, VkRenderPassDestroyer{device.get()}};
 	    }()}
-	    , command_pool_{device.get_queue_index(vkb::QueueType::graphics), device, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}
+	    , command_pool_{vkb::QueueType::graphics, device, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}
 	    , command_buffers_{command_pool_.allocate_command_buffer(), command_pool_.allocate_command_buffer()}
 	    , swapchain_extent_{swapchain.get().extent}
 	    , fences_{create_fence(device.get(), VK_FENCE_CREATE_SIGNALED_BIT),
@@ -160,7 +160,7 @@ namespace raytracing::vulkan {
 		command_buffer.end();
 	}
 
-	void RenderPass::render(VkPipeline pipeline) {
+	void RenderPass::render(VkPipeline pipeline) const {
 		VkFence const current_fence{fences_[current_frame_].get()};
 		vkWaitForFences(device_->get(), 1, &current_fence, 1, std::numeric_limits<std::uint64_t>::max());
 		vkResetFences(device_->get(), 1, &current_fence);

@@ -28,7 +28,8 @@ namespace raytracing {
 	    }()}
 	    , surface_{[this, &instance] {
 		    VkSurfaceKHR surface{};
-		    if (VkResult result{glfwCreateWindowSurface(instance, get(), nullptr, &surface)}; result != VK_SUCCESS) {
+		    if (VkResult result{glfwCreateWindowSurface(instance, window_.get(), nullptr, &surface)};
+		        result != VK_SUCCESS) {
 			    throw vulkan::VkException{"Failed to create window surface", result};
 		    }
 
@@ -41,8 +42,12 @@ namespace raytracing {
 		Logger::get_instance().log(LogLevel::Debug, "Created window and its surface");
 	}
 
-	GLFWwindow *Window::get() const noexcept {
-		return window_.get();
+	bool Window::get_should_close() const {
+		return glfwWindowShouldClose(window_.get());
+	}
+
+	void Window::poll_events() const {
+		glfwPollEvents();
 	}
 
 	vulkan::Surface &Window::get_surface() noexcept {
