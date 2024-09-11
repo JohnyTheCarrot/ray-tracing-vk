@@ -58,7 +58,7 @@ namespace raytracing::vulkan {
 			                UniqueVkCommandBuffer{
 			                        buff, CommandBufferDestroyer{device_->get().device, command_pool_.get()}
 			                },
-			                device_->get().device, queue_
+			                *device_, queue_
 			        };
 		        }
 		);

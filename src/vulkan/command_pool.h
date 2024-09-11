@@ -3,7 +3,6 @@
 
 #include "VkBootstrap.h"
 #include "src/vulkan/command_buffer.h"
-#include <cstdint>
 #include <memory>
 #include <vector>
 

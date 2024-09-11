@@ -13,6 +13,8 @@ struct VkDevice_T;
 using VkDevice = VkDevice_T *;
 
 namespace raytracing::vulkan {
+	class LogicalDevice;
+
 	class CommandBufferDestroyer final {
 		VkDevice      device_;
 		VkCommandPool cmd_pool_;
@@ -28,10 +30,10 @@ namespace raytracing::vulkan {
 	class CommandBuffer final {
 		UniqueVkCommandBuffer cmd_buffer_;
 		VkQueue               queue_;
-		VkDevice              device_;
+		LogicalDevice const  *device_;
 
 	public:
-		CommandBuffer(UniqueVkCommandBuffer &&buffer, VkDevice device, VkQueue queue);
+		CommandBuffer(UniqueVkCommandBuffer &&buffer, LogicalDevice const &device, VkQueue queue);
 
 		void begin(VkCommandBufferUsageFlags flags) const;
 

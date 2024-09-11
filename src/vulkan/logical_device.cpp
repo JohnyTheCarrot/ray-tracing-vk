@@ -1,5 +1,6 @@
 #include "logical_device.h"
 #include "phys_device.h"
+#include "vk_exception.h"
 #include <format>
 
 namespace raytracing::vulkan {
@@ -49,5 +50,29 @@ namespace raytracing::vulkan {
 
 	void LogicalDevice::wait_idle() const {
 		vkDeviceWaitIdle(device_.get());
+	}
+
+	UniqueVkSemaphore LogicalDevice::create_semaphore() const {
+		VkSemaphoreCreateInfo semaphore_info{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+
+		VkSemaphore semaphore{};
+		if (VkResult const result{vkCreateSemaphore(device_.get(), &semaphore_info, nullptr, &semaphore)};
+		    result != VK_SUCCESS) {
+			throw VkException{"Could not create semaphore", result};
+		}
+
+		return UniqueVkSemaphore{semaphore, VkSemaphoreDestroyer{device_.get()}};
+	}
+
+	UniqueVkFence LogicalDevice::create_fence(VkFenceCreateFlags flags) const {
+		VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+		fence_info.flags = flags;
+
+		VkFence fence{};
+		if (VkResult const result{vkCreateFence(device_.get(), &fence_info, nullptr, &fence)}; result != VK_SUCCESS) {
+			throw VkException{"Could not create fence", result};
+		}
+
+		return vulkan::UniqueVkFence{fence, vulkan::VkFenceDestroyer{device_.get()}};
 	}
 }// namespace raytracing::vulkan

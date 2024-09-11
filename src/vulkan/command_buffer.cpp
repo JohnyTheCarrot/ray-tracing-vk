@@ -1,6 +1,7 @@
 #include "command_buffer.h"
 #include "src/diagnostics.h"
 #include "src/vulkan/fence.h"
+#include "src/vulkan/logical_device.h"
 #include "src/vulkan/vk_exception.h"
 #include <cassert>
 #include <limits>
@@ -17,10 +18,10 @@ namespace raytracing::vulkan {
 		vkFreeCommandBuffers(device_, cmd_pool_, 1, &buffer);
 	}
 
-	CommandBuffer::CommandBuffer(UniqueVkCommandBuffer &&buffer, VkDevice device, VkQueue queue)
+	CommandBuffer::CommandBuffer(UniqueVkCommandBuffer &&buffer, LogicalDevice const &device, VkQueue queue)
 	    : cmd_buffer_{std::move(buffer)}
 	    , queue_{queue}
-	    , device_{device} {
+	    , device_{&device} {
 	}
 
 	void CommandBuffer::begin(VkCommandBufferUsageFlags flags) const {
@@ -55,13 +56,13 @@ namespace raytracing::vulkan {
 				return UniqueVkFence{VK_NULL_HANDLE, VkFenceDestroyer{VK_NULL_HANDLE}};
 			}
 
-			return create_fence(device_);
+			return device_->create_fence();
 		}()};
 		VkFence       fence{optional_fence == VK_NULL_HANDLE ? unique_fence.get() : optional_fence};
 
 		submit(fence, submit_info);
 
-		vkWaitForFences(device_, 1, &fence, VK_TRUE, std::numeric_limits<std::size_t>::max());
+		vkWaitForFences(device_->get(), 1, &fence, VK_TRUE, std::numeric_limits<std::size_t>::max());
 	}
 
 	VkCommandBuffer CommandBuffer::get() const {

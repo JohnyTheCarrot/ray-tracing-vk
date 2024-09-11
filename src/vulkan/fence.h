@@ -15,9 +15,6 @@ namespace raytracing::vulkan {
 	};
 
 	using UniqueVkFence = std::unique_ptr<VkFence_T, VkFenceDestroyer>;
-
-	[[nodiscard]]
-	UniqueVkFence create_fence(VkDevice device, VkFenceCreateFlags flags = 0);
 }// namespace raytracing::vulkan
 
 #endif//  SRC_VULKAN_FENCE_H_

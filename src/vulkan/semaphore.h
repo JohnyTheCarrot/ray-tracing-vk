@@ -2,6 +2,7 @@
 #define SRC_VULKAN_SEMAPHORE_H_
 
 #include <memory>
+
 struct VkDevice_T;
 using VkDevice = VkDevice_T *;
 
@@ -19,9 +20,6 @@ namespace raytracing::vulkan {
 	};
 
 	using UniqueVkSemaphore = std::unique_ptr<VkSemaphore_T, VkSemaphoreDestroyer>;
-
-	[[nodiscard]]
-	UniqueVkSemaphore create_semaphore(VkDevice device);
 }// namespace raytracing::vulkan
 
 #endif//  SRC_VULKAN_SEMAPHORE_H_

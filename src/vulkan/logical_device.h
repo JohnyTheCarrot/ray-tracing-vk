@@ -2,6 +2,8 @@
 #define SRC_VULKAN_LOGICAL_DEVICE_H_
 
 #include "VkBootstrap.h"
+#include "src/vulkan/fence.h"
+#include "src/vulkan/semaphore.h"
 #include "vkb_raii.h"
 #include <cstdint>
 
@@ -34,6 +36,12 @@ namespace raytracing::vulkan {
 		std::uint32_t get_queue_index(vkb::QueueType queue_type) const;
 
 		void wait_idle() const;
+
+		[[nodiscard]]
+		UniqueVkSemaphore create_semaphore() const;
+
+		[[nodiscard]]
+		UniqueVkFence create_fence(VkFenceCreateFlags flags = 0) const;
 	};
 }// namespace raytracing::vulkan
 

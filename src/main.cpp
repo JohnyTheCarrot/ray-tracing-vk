@@ -59,7 +59,7 @@ int main() {
 		} catch (std::exception const &ex) {
 			std::string message{std::format("Exiting with error: {}", ex.what())};
 			raytracing::Logger::get_instance().log(raytracing::LogLevel::Error, std::move(message));
-		}
+		} catch (...) { raytracing::Logger::get_instance().log(raytracing::LogLevel::Error, "Unknown error"); }
 
 		return 1;
 	}()};

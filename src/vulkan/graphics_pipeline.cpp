@@ -105,7 +105,7 @@ namespace raytracing::vulkan {
 		    pipeline_info.pDynamicState       = &dynamic_state;
 
 		    pipeline_info.layout     = pipeline_layout_.get();
-		    pipeline_info.renderPass = render_pass_.get();
+		    pipeline_info.renderPass = render_pass_.get_render_pass().get();
 		    pipeline_info.subpass    = 0;
 
 		    VkPipeline graphics_pipeline{};

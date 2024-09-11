@@ -24,9 +24,9 @@ namespace raytracing::vulkan {
 	using UniqueVkPipeline = std::unique_ptr<VkPipeline_T, VkPipelineDestroyer>;
 
 	class GraphicsPipeline final {
-		RenderPass       render_pass_;
-		PipelineLayout   pipeline_layout_;
-		UniqueVkPipeline pipeline_;
+		RenderPassController render_pass_;
+		PipelineLayout       pipeline_layout_;
+		UniqueVkPipeline     pipeline_;
 
 	public:
 		GraphicsPipeline(

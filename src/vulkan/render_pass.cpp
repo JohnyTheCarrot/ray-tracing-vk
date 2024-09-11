@@ -75,21 +75,11 @@ namespace raytracing::vulkan {
 		    }
 
 		    return UniqueVkRenderPass{render_pass, VkRenderPassDestroyer{device.get()}};
-	    }()}
-	    , command_pool_{vkb::QueueType::graphics, device, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}
-	    , command_buffers_{command_pool_.allocate_command_buffer(), command_pool_.allocate_command_buffer()}
-	    , swapchain_extent_{swapchain.get().extent}
-	    , fences_{create_fence(device.get(), VK_FENCE_CREATE_SIGNALED_BIT),
-	              create_fence(device.get(), VK_FENCE_CREATE_SIGNALED_BIT)}
-	    , render_finished_semaphores_{create_semaphore(device.get()), create_semaphore(device.get())}
-	    , img_available_semaphores_{create_semaphore(device.get()), create_semaphore(device.get())}
-	    , swapchain_{&swapchain}
-	    , device_{&device}
-	    , graphics_queue_{device.get_queue(vkb::QueueType::graphics)}
-	    , present_queue_{device.get_queue(vkb::QueueType::present)} {
+	    }()} {
 		auto const &image_views{swapchain.get_views()};
 
 		framebuffers_.reserve(image_views.size());
+
 		std::transform(
 		        image_views.cbegin(), image_views.cend(), std::back_inserter(framebuffers_),
 		        [&](UniqueVkImageView const &image_view) {
@@ -120,16 +110,29 @@ namespace raytracing::vulkan {
 		return render_pass_.get();
 	}
 
-	// TODO: look into making the pipeline a member instead
-	void RenderPass::record_cmd_buff(std::uint32_t image_idx, VkPipeline pipeline) const {
-		auto const &command_buffer{command_buffers_[current_frame_]};
+	VkFramebuffer RenderPass::get_framebuffer(std::uint32_t image_idx) const {
+		return framebuffers_[image_idx].get();
+	}
+
+	CommandBufferManager::CommandBufferManager(LogicalDevice const &device, VkExtent2D extent)
+	    : command_pool_{vkb::QueueType::graphics, device, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT}
+	    , command_buffers_{command_pool_.allocate_command_buffers(max_frames_in_flight)} {
+	}
+
+	void CommandBufferManager::record(
+	        std::uint32_t current_frame, std::uint32_t image_idx, VkPipeline pipeline, VkExtent2D swapchain_extent,
+	        RenderPass const &render_pass
+	) const {
+		auto const &command_buffer{command_buffers_[current_frame]};
+		command_buffer.reset();
+
 		command_buffer.begin(0);
 
 		VkRenderPassBeginInfo render_pass_info{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-		render_pass_info.renderPass        = render_pass_.get();
-		render_pass_info.framebuffer       = framebuffers_.at(image_idx).get();
+		render_pass_info.renderPass        = render_pass.get();
+		render_pass_info.framebuffer       = render_pass.get_framebuffer(image_idx);
 		render_pass_info.renderArea.offset = {0, 0};
-		render_pass_info.renderArea.extent = swapchain_extent_;
+		render_pass_info.renderArea.extent = swapchain_extent;
 
 		VkClearValue clear_color{{{0.f, 0.f, 0.f, 1.f}}};
 		render_pass_info.clearValueCount = 1;
@@ -142,15 +145,15 @@ namespace raytracing::vulkan {
 		VkViewport viewport{};
 		viewport.x        = 0.f;
 		viewport.y        = 0.f;
-		viewport.width    = static_cast<float>(swapchain_extent_.width);
-		viewport.height   = static_cast<float>(swapchain_extent_.height);
+		viewport.width    = static_cast<float>(swapchain_extent.width);
+		viewport.height   = static_cast<float>(swapchain_extent.height);
 		viewport.minDepth = 0.f;
 		viewport.maxDepth = 1.f;
 		vkCmdSetViewport(command_buffer.get(), 0, 1, &viewport);
 
 		VkRect2D scissor{};
 		scissor.offset = {0, 0};
-		scissor.extent = swapchain_extent_;
+		scissor.extent = swapchain_extent;
 		vkCmdSetScissor(command_buffer.get(), 0, 1, &scissor);
 
 		vkCmdDraw(command_buffer.get(), 3, 1, 0, 0);
@@ -160,13 +163,87 @@ namespace raytracing::vulkan {
 		command_buffer.end();
 	}
 
-	void RenderPass::render(VkPipeline pipeline) const {
-		VkFence const current_fence{fences_[current_frame_].get()};
-		vkWaitForFences(device_->get(), 1, &current_fence, 1, std::numeric_limits<std::uint64_t>::max());
-		vkResetFences(device_->get(), 1, &current_fence);
+	void
+	CommandBufferManager::submit(std::uint32_t image_idx, VkFence fence, VkSemaphore wait, VkSemaphore signal) const {
+		VkPipelineStageFlags wait_stage{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
-		VkSemaphore   img_available_semaphore{img_available_semaphores_[current_frame_].get()};
-		std::uint32_t image_idx{};
+		VkSubmitInfo submit_info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+		submit_info.waitSemaphoreCount = 1;
+		submit_info.pWaitSemaphores    = &wait;
+		submit_info.pWaitDstStageMask  = &wait_stage;
+		submit_info.commandBufferCount = 1;
+
+		auto const     &cmd_buf{command_buffers_[image_idx]};
+		VkCommandBuffer cmd_buf_raw{cmd_buf.get()};
+		submit_info.pCommandBuffers = &cmd_buf_raw;
+
+		submit_info.signalSemaphoreCount = 1;
+		submit_info.pSignalSemaphores    = &signal;
+
+		cmd_buf.submit(fence, submit_info);
+	}
+
+	SynchronizationManager::SynchronizationManager(LogicalDevice const &device)
+	    : fences_{device.create_fence(VK_FENCE_CREATE_SIGNALED_BIT), device.create_fence(VK_FENCE_CREATE_SIGNALED_BIT)}
+	    , render_finished_semaphores_{device.create_semaphore(), device.create_semaphore()}
+	    , img_available_semaphores_{device.create_semaphore(), device.create_semaphore()}
+	    , device_{&device} {
+	}
+
+	void SynchronizationManager::wait_for_fence(std::uint32_t frame_idx) const {
+		VkFence fence{fences_[frame_idx].get()};
+		vkWaitForFences(device_->get(), 1, &fence, 1, std::numeric_limits<std::uint64_t>::max());
+		vkResetFences(device_->get(), 1, &fence);
+	}
+
+	VkFence SynchronizationManager::get_fence(std::uint32_t frame_idx) const {
+		return fences_[frame_idx].get();
+	}
+
+	VkSemaphore SynchronizationManager::get_render_finished_semaphore(std::uint32_t frame_idx) const {
+		return render_finished_semaphores_[frame_idx].get();
+	}
+
+	VkSemaphore SynchronizationManager::get_image_available_semaphore(std::uint32_t frame_idx) const {
+		return img_available_semaphores_[frame_idx].get();
+	}
+
+	QueueManager::QueueManager(LogicalDevice const &device)
+	    : graphics_queue_{device.get_queue(vkb::QueueType::graphics)}
+	    , present_queue_{device.get_queue(vkb::QueueType::present)} {
+	}
+
+	void QueueManager::queue_presentation(VkSwapchainKHR swapchain, std::uint32_t image_idx, VkSemaphore signal) const {
+		VkPresentInfoKHR present_info{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
+		present_info.waitSemaphoreCount = 1;
+		present_info.pWaitSemaphores    = &signal;
+
+		present_info.swapchainCount = 1;
+		present_info.pSwapchains    = &swapchain;
+		present_info.pImageIndices  = &image_idx;
+
+		vkQueuePresentKHR(present_queue_, &present_info);
+	}
+
+	RenderPassController::RenderPassController(LogicalDevice const &device, Swapchain const &swapchain)
+	    : render_pass_{device, swapchain}
+	    , command_buffer_manager_{device, swapchain.get().extent}
+	    , synchronization_manager_{device}
+	    , queue_manager_{device}
+	    , device_{&device}
+	    , swapchain_{&swapchain} {
+	}
+
+	RenderPass const &RenderPassController::get_render_pass() const {
+		return render_pass_;
+	}
+
+	void RenderPassController::render(VkPipeline pipeline) const {
+		synchronization_manager_.wait_for_fence(current_frame_);
+
+		VkSemaphore const img_available_semaphore{synchronization_manager_.get_image_available_semaphore(current_frame_)
+		};
+		std::uint32_t     image_idx{};
 		if (VkResult const result{vkAcquireNextImageKHR(
 		            device_->get(), swapchain_->get(), std::numeric_limits<std::uint64_t>::max(),
 		            img_available_semaphore, VK_NULL_HANDLE, &image_idx
@@ -175,37 +252,13 @@ namespace raytracing::vulkan {
 			throw VkException{"Failed to acquire next image from swapchain", result};
 		}
 
-		auto const &command_buffer{command_buffers_[current_frame_]};
-		vkResetCommandBuffer(command_buffer.get(), 0);
-		record_cmd_buff(image_idx, pipeline);
+		command_buffer_manager_.record(current_frame_, image_idx, pipeline, swapchain_->get().extent, render_pass_);
 
-		VkSemaphore          semaphore{img_available_semaphores_[current_frame_].get()};
-		VkPipelineStageFlags wait_stage{VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-
-		VkSubmitInfo submit_info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-		submit_info.waitSemaphoreCount = 1;
-		submit_info.pWaitSemaphores    = &semaphore;
-		submit_info.pWaitDstStageMask  = &wait_stage;
-		submit_info.commandBufferCount = 1;
-		VkCommandBuffer cmd_buf_raw{command_buffer.get()};
-		submit_info.pCommandBuffers = &cmd_buf_raw;
-
-		VkSemaphore signal_semaphore{render_finished_semaphores_[current_frame_].get()};
-		submit_info.signalSemaphoreCount = 1;
-		submit_info.pSignalSemaphores    = &signal_semaphore;
-
-		command_buffer.submit(current_fence, submit_info);
-
-		VkPresentInfoKHR present_info{VK_STRUCTURE_TYPE_PRESENT_INFO_KHR};
-		present_info.waitSemaphoreCount = 1;
-		present_info.pWaitSemaphores    = &signal_semaphore;
-
-		VkSwapchainKHR swapchain{swapchain_->get()};
-		present_info.swapchainCount = 1;
-		present_info.pSwapchains    = &swapchain;
-		present_info.pImageIndices  = &image_idx;
-
-		vkQueuePresentKHR(present_queue_, &present_info);
+		VkSemaphore const semaphore{synchronization_manager_.get_image_available_semaphore(current_frame_)};
+		VkSemaphore const signal_semaphore{synchronization_manager_.get_render_finished_semaphore(current_frame_)};
+		VkFence const     fence{synchronization_manager_.get_fence(current_frame_)};
+		command_buffer_manager_.submit(current_frame_, fence, semaphore, signal_semaphore);
+		queue_manager_.queue_presentation(swapchain_->get().swapchain, image_idx, signal_semaphore);
 
 		current_frame_ = (current_frame_ + 1) % max_frames_in_flight;
 	}
