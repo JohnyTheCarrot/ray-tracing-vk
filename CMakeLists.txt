@@ -94,6 +94,10 @@ set(SOURCE_FILES
         src/vulkan/semaphore.cpp
         src/vulkan/fence.h
         src/vulkan/fence.cpp
+        src/vulkan/descriptor_set_layout.h
+        src/vulkan/descriptor_set_layout.cpp
+        src/vulkan/descriptor_pool.h
+        src/vulkan/descriptor_pool.cpp
         src/mesh.h
         src/mesh.cpp
         src/scene.h
