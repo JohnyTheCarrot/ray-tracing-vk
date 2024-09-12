@@ -45,6 +45,8 @@ set(GLSL_SOURCE_FILES
 set(SOURCE_FILES
         src/main.cpp
         src/window.h
+        src/camera.h
+        src/camera.cpp
         src/diagnostics.h
         src/diagnostics.cpp
         src/Singleton.h

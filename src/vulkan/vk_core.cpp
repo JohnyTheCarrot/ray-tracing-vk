@@ -42,7 +42,7 @@ namespace raytracing::vulkan {
 
 		    return vulkan::UniqueVkbInstance{instance_build_result.value()};
 	    }()}
-	    , window_{instance_.get(), 800, 600, app_name.data()}
+	    , window_{instance_.get(), 1600, 900, app_name.data()}
 	    , surface_{&window_.get_surface()} {
 	}
 

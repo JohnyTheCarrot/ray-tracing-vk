@@ -374,7 +374,8 @@ namespace raytracing::vulkan {
 				mesh_instances.emplace(node.mesh_idx_.value(), std::vector<glm::mat4>{});
 			}
 
-			mesh_instances.at(node.mesh_idx_.value()).emplace_back(node.local_matrix_);
+			mesh_instances.at(node.mesh_idx_.value())
+			        .emplace_back(glm::scale(glm::mat4{1.f}, glm::vec3{10.f}) * node.local_matrix_);
 		}
 
 		for (auto const &[index, mats]: mesh_instances) {

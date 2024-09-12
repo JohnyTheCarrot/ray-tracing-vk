@@ -1,5 +1,6 @@
 #include "render_pass.h"
 #include "VkBootstrap.h"
+#include "src/camera.h"
 #include "src/diagnostics.h"
 #include "src/scene.h"
 #include "src/vulkan/allocator.h"
@@ -284,10 +285,10 @@ namespace raytracing::vulkan {
 		float time        = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
 		ubo.model = glm::scale(glm::mat4{1.f}, glm::vec3{0.001f});
-		ubo.view  = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		ubo.view  = Camera::get_instance().get_mat();
 		ubo.proj  = glm::perspective(
                 glm::radians(45.f),
-                static_cast<float>(swapchain_extent.width) / static_cast<float>(swapchain_extent.height), 0.1f, 1000.f
+                static_cast<float>(swapchain_extent.width) / static_cast<float>(swapchain_extent.height), 0.1f, 10000.f
         );
 		ubo.proj[1][1] *= -1;
 		memcpy(uniform_buffers_mapped_[current_frame].get_mapped_ptr(), &ubo, sizeof(ubo));
