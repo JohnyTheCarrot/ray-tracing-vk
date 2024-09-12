@@ -1,16 +1,17 @@
 #ifndef SRC_VULKAN_GRAPHICS_PIPELINE_H_
 #define SRC_VULKAN_GRAPHICS_PIPELINE_H_
 
-#include "pipeline_layout.h"
 #include "src/vulkan/render_pass.h"
+#include "src/vulkan/shader_module.h"
 #include <memory>
-#include <vector>
 #include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
 	class Swapchain;
 
 	class LogicalDevice;
+
+	class Allocator;
 
 	class VkPipelineDestroyer final {
 		VkDevice device_;
@@ -23,18 +24,19 @@ namespace raytracing::vulkan {
 
 	using UniqueVkPipeline = std::unique_ptr<VkPipeline_T, VkPipelineDestroyer>;
 
+	class Scene;
+
 	class GraphicsPipeline final {
-		RenderPassController render_pass_;
-		PipelineLayout       pipeline_layout_;
-		UniqueVkPipeline     pipeline_;
+		RenderPassController   render_pass_;
+		ShaderModule           vert_shader_module_;
+		ShaderModule           frag_shader_module_;
+		UniqueVkPipelineLayout pipeline_layout_;
+		UniqueVkPipeline       pipeline_;
 
 	public:
-		GraphicsPipeline(
-		        LogicalDevice const &device, Swapchain const &swapchain,
-		        std::vector<VkPipelineShaderStageCreateInfo> const &shader_stages
-		);
+		GraphicsPipeline(LogicalDevice const &device, Allocator const &allocator, Swapchain const &swapchain);
 
-		void render() const;
+		void render(Scene const &scene) const;
 	};
 }// namespace raytracing::vulkan
 

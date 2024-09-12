@@ -3,7 +3,7 @@
 
 #include "src/scene.h"
 #include "src/vulkan/device_manager.h"
-#include "src/vulkan/rasterizer.h"
+#include "src/vulkan/graphics_pipeline.h"
 #include "src/vulkan/swapchain.h"
 #include "src/vulkan/vk_core.h"
 #include <filesystem>
@@ -17,8 +17,9 @@ namespace raytracing::vulkan {
 		VulkanCore    core_;
 		DeviceManager device_manager_;
 
-		Swapchain  swapchain_;
-		Rasterizer rasterizer_;
+		Swapchain        swapchain_;
+		GraphicsPipeline rasterizer_;
+		Scene            scene_;
 
 	public:
 		explicit Engine(std::string_view app_name);
@@ -27,7 +28,7 @@ namespace raytracing::vulkan {
 		DeviceManager const &get_device_manager() const;
 
 		[[nodiscard]]
-		Scene load_scene(std::filesystem::path const &path, SceneFormat format) const;
+		Scene load_scene(std::filesystem::path const &path, SceneFormat format);
 
 		void main_loop();
 	};

@@ -6,6 +6,9 @@
 
 namespace raytracing {
 	void Logger::log(LogLevel level, std::string_view message) {
+		/*if (level == LogLevel::Debug)*/
+		/*	return;*/
+
 		auto const levelAsString{LogLevelToString(level)};
 		auto const completeMessage{std::format("[{}] {}", levelAsString, message)};
 

@@ -1,10 +1,8 @@
 #include "src/vulkan/engine.h"
-#include <filesystem>
 #define GLFW_INCLUDE_VULKAN
 
 
 #include "diagnostics.h"
-#include "scene.h"
 
 #include <VkBootstrap.h>
 #include <format>
@@ -40,8 +38,6 @@ int run() {
 	vulkan::Engine engine{"Vulkan Raytracer"};
 
 	Logger::get_instance().log(LogLevel::Debug, "vulkan ready");
-
-	Scene const scene{engine.load_scene("resources/maps/p2-map.glb", SceneFormat::Gltf)};
 
 	Logger::get_instance().log(LogLevel::Debug, "gltf done");
 

@@ -1,8 +1,7 @@
 #include "buffer.h"
 #include "command_buffer.h"
 #include "command_pool.h"
-#include "src/diagnostics.h"
-
+#include "src/vulkan/vk_exception.h"
 #include <optional>
 #include <vulkan/vulkan_core.h>
 
@@ -15,6 +14,37 @@ namespace raytracing::vulkan {
 	void BufferDestroyer::operator()(VkBuffer buffer) const {
 		/*Logger::get_instance().log(LogLevel::Debug, "Destroying buffer");*/
 		vmaDestroyBuffer(allocator_, buffer, allocation_);
+	}
+
+	MappedBufferPtr::MappedBufferPtr(void *mapped_ptr, Buffer const &buff)
+	    : buff_{&buff}
+	    , mapped_ptr_{mapped_ptr} {
+	}
+
+	MappedBufferPtr::~MappedBufferPtr() {
+		if (mapped_ptr_ != nullptr)
+			buff_->unmap_memory();
+	}
+
+	MappedBufferPtr::MappedBufferPtr(MappedBufferPtr &&other)
+	    : buff_{other.buff_}
+	    , mapped_ptr_{other.mapped_ptr_} {
+		other.mapped_ptr_ = nullptr;
+	}
+
+	MappedBufferPtr &MappedBufferPtr::operator=(MappedBufferPtr &&other) {
+		if (&other == this)
+			return *this;
+
+		buff_             = other.buff_;
+		mapped_ptr_       = other.mapped_ptr_;
+		other.mapped_ptr_ = nullptr;
+
+		return *this;
+	}
+
+	void *MappedBufferPtr::get_mapped_ptr() const {
+		return mapped_ptr_;
 	}
 
 	Buffer::Buffer(
@@ -52,6 +82,7 @@ namespace raytracing::vulkan {
 
 		    return vulkan::UniqueVkBuffer{buffer, vulkan::BufferDestroyer{allocator, allocation_}};
 	    }()}
+	    , allocator_{allocator}
 	    , size_{size}
 	    , device_{device} {
 	}
@@ -80,5 +111,19 @@ namespace raytracing::vulkan {
 
 	VkDeviceSize Buffer::get_size() const noexcept {
 		return size_;
+	}
+
+	MappedBufferPtr Buffer::map_memory() const {
+		void *map{};
+
+		if (VkResult const result{vmaMapMemory(allocator_, allocation_, &map)}; result != VK_SUCCESS) {
+			throw VkException{"Failed to map memory", result};
+		}
+
+		return MappedBufferPtr{map, *this};
+	}
+
+	void Buffer::unmap_memory() const {
+		vmaUnmapMemory(allocator_, allocation_);
 	}
 }// namespace raytracing::vulkan

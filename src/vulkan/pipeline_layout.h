@@ -8,7 +8,7 @@ namespace raytracing::vulkan {
 		UniqueVkPipelineLayout pipeline_layout_;
 
 	public:
-		explicit PipelineLayout(VkDevice device);
+		PipelineLayout(VkDevice device, VkDescriptorSetLayout desc_set_layout);
 
 		[[nodiscard]]
 		VkPipelineLayout get() const;

@@ -102,8 +102,6 @@ set(SOURCE_FILES
         src/vulkan/vk_core.cpp
         src/vulkan/device_manager.h
         src/vulkan/device_manager.cpp
-        src/vulkan/rasterizer.h
-        src/vulkan/rasterizer.cpp
         src/mesh.h
         src/mesh.cpp
         src/scene.h

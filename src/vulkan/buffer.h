@@ -1,6 +1,7 @@
 #ifndef SRC_VULKAN_BUFFER_H_
 #define SRC_VULKAN_BUFFER_H_
 
+#include <glm/glm.hpp>
 #include <optional>
 #include <span>
 #include <vulkan/vulkan_core.h>
@@ -23,8 +24,34 @@ namespace raytracing::vulkan {
 
 	using UniqueVkBuffer = std::unique_ptr<VkBuffer_T, BufferDestroyer>;
 
+	class Buffer;
+
+	class Allocator;
+
+	class MappedBufferPtr final {
+		Buffer const *buff_;
+		void         *mapped_ptr_;
+
+	public:
+		explicit MappedBufferPtr(void *mapped_ptr, Buffer const &buff);
+
+		~MappedBufferPtr();
+
+		MappedBufferPtr(MappedBufferPtr &&);
+
+		MappedBufferPtr &operator=(MappedBufferPtr &&);
+
+		MappedBufferPtr(MappedBufferPtr const &) = delete;
+
+		MappedBufferPtr &operator=(MappedBufferPtr const &) = delete;
+
+		[[nodiscard]]
+		void *get_mapped_ptr() const;
+	};
+
 	class Buffer final {
 		UniqueVkBuffer buffer_;
+		VmaAllocator   allocator_;
 		VmaAllocation  allocation_;
 		VkDeviceSize   size_;
 		VkDevice       device_;
@@ -57,6 +84,11 @@ namespace raytracing::vulkan {
 		VkDeviceSize get_size() const noexcept;
 
 		void copy_to(CommandPool const &command_pool, Buffer &buffer) const;
+
+		[[nodiscard]]
+		MappedBufferPtr map_memory() const;
+
+		void unmap_memory() const;
 	};
 }// namespace raytracing::vulkan
 

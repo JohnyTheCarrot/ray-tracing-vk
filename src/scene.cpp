@@ -5,10 +5,10 @@
 #include "src/vulkan/command_buffer.h"
 #include "src/vulkan/command_pool.h"
 #include "src/vulkan/ext_fns.h"
-#include "src/vulkan/fence.h"
 #include "src/vulkan/logical_device.h"
 #include "src/vulkan/phys_device.h"
 #include "src/vulkan/vkb_raii.h"
+#include <algorithm>
 #include <fastgltf/core.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/tools.hpp>
@@ -17,9 +17,10 @@
 #include <glm/gtx/quaternion.hpp>
 #include <glm/matrix.hpp>
 #include <stdexcept>
+#include <unordered_map>
 #include <vulkan/vulkan_core.h>
 
-namespace raytracing {
+namespace raytracing::vulkan {
 	void Scene::cmd_create_blas(
 	        vulkan::CommandBuffer const &command_buffer, VkDevice device, VkPhysicalDevice phys_device,
 	        VmaAllocator allocator, std::vector<std::uint32_t> const &indices,
@@ -134,33 +135,36 @@ namespace raytracing {
 
 	vulkan::AccelerationStructure Scene::create_tlas(
 	        vulkan::LogicalDevice const &device, VmaAllocator allocator, vulkan::CommandPool const &command_pool,
-	        std::vector<BuildAccelerationStructure> const &blas, std::vector<MeshInstance> const &mesh_instances
+	        std::vector<BuildAccelerationStructure> const               &blas,
+	        std::unordered_map<MeshIndex, std::vector<glm::mat4>> const &mesh_instances
 	) {
 		std::vector<VkAccelerationStructureInstanceKHR> instances{};
 		instances.reserve(mesh_instances.size());
 
-		for (auto const &mesh_instance: mesh_instances) {
-			VkAccelerationStructureInstanceKHR instance{};
-			instance.transform = [&] {
-				glm::mat4 const      transposed{glm::transpose(mesh_instance.model_matrix_)};
-				VkTransformMatrixKHR result{};
-				memcpy(&result, &transposed, sizeof(VkTransformMatrixKHR));
+		for (auto const &[index, mats]: mesh_instances) {
+			for (auto const &mat: mats) {
+				VkAccelerationStructureInstanceKHR instance{};
+				instance.transform = [&] {
+					glm::mat4 const      transposed{glm::transpose(mat)};
+					VkTransformMatrixKHR result{};
+					memcpy(&result, &transposed, sizeof(VkTransformMatrixKHR));
 
-				return result;
-			}();
-			instance.instanceCustomIndex            = mesh_instance.mesh_idx_;
-			instance.accelerationStructureReference = [&] {
-				VkAccelerationStructureDeviceAddressInfoKHR address_info{
-				        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR
-				};
-				address_info.accelerationStructure = blas[mesh_instance.mesh_idx_].acc_.value().get_acc();
+					return result;
+				}();
+				instance.instanceCustomIndex            = index;
+				instance.accelerationStructureReference = [&] {
+					VkAccelerationStructureDeviceAddressInfoKHR address_info{
+					        VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR
+					};
+					address_info.accelerationStructure = blas[index].acc_.value().get_acc();
 
-				return vulkan::ext::vkGetAccelerationStructureDeviceAddressKHR(device.get().device, &address_info);
-			}();
-			instance.flags                                  = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-			instance.mask                                   = 0xFF;
-			instance.instanceShaderBindingTableRecordOffset = 0;
-			instances.emplace_back(instance);
+					return vulkan::ext::vkGetAccelerationStructureDeviceAddressKHR(device.get().device, &address_info);
+				}();
+				instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+				instance.mask  = 0xFF;
+				instance.instanceShaderBindingTableRecordOffset = 0;
+				instances.emplace_back(instance);
+			}
 		}
 
 		std::uint32_t  instance_count{static_cast<std::uint32_t>(instances.size())};
@@ -265,8 +269,6 @@ namespace raytracing {
 		if (asset.error() != fastgltf::Error::None) {
 			throw std::runtime_error{"Couldn't parse GLTF/GLB file"};
 		}
-		// vulkan::CommandBuffer              command_buffer{command_pool.allocate_command_buffer()};
-		// command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
 		for (auto mesh_idx{0}; mesh_idx < asset->meshes.size(); ++mesh_idx) {
 			auto const &mesh{asset->meshes[mesh_idx]};
@@ -362,33 +364,35 @@ namespace raytracing {
 			}
 		}
 
-		std::vector<MeshInstance> mesh_instances{};
+		std::unordered_map<MeshIndex, std::vector<glm::mat4>> mesh_instances{};
 		mesh_instances.reserve(nodes_.size());
 		for (auto const &node: nodes_) {
 			if (!node.mesh_idx_.has_value())
 				continue;
 
-			mesh_instances.emplace_back(node.local_matrix_, node.mesh_idx_.value());
+			if (!mesh_instances.contains(node.mesh_idx_.value())) {
+				mesh_instances.emplace(node.mesh_idx_.value(), std::vector<glm::mat4>{});
+			}
+
+			mesh_instances.at(node.mesh_idx_.value()).emplace_back(node.local_matrix_);
 		}
 
-		Logger::get_instance().log(LogLevel::Debug, "Creating blas");
+		for (auto const &[index, mats]: mesh_instances) {
+			meshes_[index].set_instances(device.get().device, allocator, command_pool, mats);
+		}
+
+		Logger::get_instance().log(LogLevel::Debug, "Creating BLAS");
 		blas_ = create_blas(device.get().physical_device, command_pool, allocator, device.get().device);
-		Logger::get_instance().log(LogLevel::Debug, "Creating tlas");
+		Logger::get_instance().log(LogLevel::Debug, "BLAS created, creating TLAS");
 		tlas_ = create_tlas(device, allocator, command_pool, blas_, mesh_instances);
-		Logger::get_instance().log(LogLevel::Debug, "Tlas created");
-
-		/*vulkan::UniqueVkFence fence{[&] {*/
-		/*	VkFenceCreateInfo fence_info{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};*/
-		/*	VkFence           fence{};*/
-		/*	if (VkResult const result{vkCreateFence(device.get().device, &fence_info, nullptr, &fence)};*/
-		/*	    result != VK_SUCCESS) {*/
-		/*		throw vulkan::VkException{"Could not create fence", result};*/
-		/*	}*/
-		/**/
-		/*	return vulkan::UniqueVkFence{fence, vulkan::VkFenceDestroyer{device.get().device}};*/
-		/*}()};*/
-
-		// command_buffer.end();
-		// command_buffer.submit_and_wait(fence.get());
+		Logger::get_instance().log(LogLevel::Debug, "TLAS created");
 	}
-}// namespace raytracing
+
+	void Scene::rasterizer_draw(
+	        VkCommandBuffer render_buffer, VkPipelineLayout pipeline_layout, VkDescriptorSet desc_set
+	) const {
+		std::ranges::for_each(meshes_, [=](Mesh const &mesh) {
+			mesh.rasterizer_draw(render_buffer, pipeline_layout, desc_set);
+		});
+	}
+}// namespace raytracing::vulkan

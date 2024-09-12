@@ -2,10 +2,13 @@
 #define SRC_VULKAN_LOGICAL_DEVICE_H_
 
 #include "VkBootstrap.h"
+#include "src/vulkan/descriptor_set_layout.h"
 #include "src/vulkan/fence.h"
 #include "src/vulkan/semaphore.h"
 #include "vkb_raii.h"
 #include <cstdint>
+#include <span>
+#include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
 	class PhysicalDevice;
@@ -42,6 +45,12 @@ namespace raytracing::vulkan {
 
 		[[nodiscard]]
 		UniqueVkFence create_fence(VkFenceCreateFlags flags = 0) const;
+
+		[[nodiscard]]
+		UniqueVkDescriptorSetLayout create_descriptor_set_layout(
+		        std::vector<VkDescriptorBindingFlags> const  &binding_flags,
+		        std::span<VkDescriptorSetLayoutBinding const> bindings
+		) const;
 	};
 }// namespace raytracing::vulkan
 

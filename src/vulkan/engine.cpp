@@ -1,7 +1,6 @@
 #include "engine.h"
 #include "src/scene.h"
 #include "src/vulkan/device_manager.h"
-#include "src/vulkan/rasterizer.h"
 #include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
@@ -17,14 +16,16 @@ namespace raytracing::vulkan {
 	    : core_{app_name}
 	    , device_manager_{core_.create_device_manager()}
 	    , swapchain_{device_manager_.get_logical()}
-	    , rasterizer_{device_manager_.get_logical(), swapchain_} {
+	    , rasterizer_{device_manager_.get_logical(), device_manager_.get_allocator(), swapchain_}
+	    , scene_{device_manager_.get_logical(), device_manager_.get_command_pool(),
+	             device_manager_.get_allocator().get(), "resources/maps/p2-map.glb", GltfScene{}} {
 	}
 
 	DeviceManager const &Engine::get_device_manager() const {
 		return device_manager_;
 	}
 
-	Scene Engine::load_scene(std::filesystem::path const &path, SceneFormat format) const {
+	Scene Engine::load_scene(std::filesystem::path const &path, SceneFormat format) {
 		auto const &device{device_manager_.get_logical()};
 		auto const &command_pool{device_manager_.get_command_pool()};
 		auto const &allocator{device_manager_.get_allocator()};
@@ -40,7 +41,7 @@ namespace raytracing::vulkan {
 	void Engine::main_loop() {
 		while (!core_.get_close_requested()) {
 			core_.update();
-			rasterizer_.render();
+			rasterizer_.render(scene_);
 		}
 
 		device_manager_.get_logical().wait_idle();
