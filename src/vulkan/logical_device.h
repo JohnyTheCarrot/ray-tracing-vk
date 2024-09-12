@@ -4,6 +4,7 @@
 #include "VkBootstrap.h"
 #include "src/vulkan/descriptor_set_layout.h"
 #include "src/vulkan/fence.h"
+#include "src/vulkan/image.h"
 #include "src/vulkan/semaphore.h"
 #include "vkb_raii.h"
 #include <cstdint>
@@ -12,6 +13,8 @@
 
 namespace raytracing::vulkan {
 	class PhysicalDevice;
+
+	class Allocator;
 
 	class LogicalDevice final {
 		UniqueVkbDevice       device_;
@@ -50,6 +53,12 @@ namespace raytracing::vulkan {
 		UniqueVkDescriptorSetLayout create_descriptor_set_layout(
 		        std::vector<VkDescriptorBindingFlags> const  &binding_flags,
 		        std::span<VkDescriptorSetLayoutBinding const> bindings
+		) const;
+
+		[[nodiscard]]
+		Image create_image(
+		        Allocator const &allocator, std::uint32_t width, std::uint32_t height, VkFormat format,
+		        VkImageUsageFlags usage_flags
 		) const;
 	};
 }// namespace raytracing::vulkan

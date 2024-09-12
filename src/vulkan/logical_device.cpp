@@ -1,7 +1,10 @@
 #include "logical_device.h"
+#include "allocator.h"
 #include "phys_device.h"
+#include "src/vulkan/image.h"
 #include "vk_exception.h"
 #include <format>
+#include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
 	LogicalDevice::LogicalDevice(UniqueVkbDevice &&device, PhysicalDevice const &phys_device)
@@ -106,5 +109,42 @@ namespace raytracing::vulkan {
 		}
 
 		return UniqueVkDescriptorSetLayout{desc_set_layout, VkDescriptorSetLayoutDestroyer{device_.get().device}};
+	}
+
+	Image LogicalDevice::create_image(
+	        Allocator const &allocator, std::uint32_t width, std::uint32_t height, VkFormat format,
+	        VkImageUsageFlags usage_flags
+	) const {
+		VkImageCreateInfo create_info{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+		create_info.format        = format;
+		create_info.usage         = usage_flags;
+		create_info.tiling        = VK_IMAGE_TILING_OPTIMAL;
+		create_info.imageType     = VK_IMAGE_TYPE_2D;
+		create_info.samples       = VK_SAMPLE_COUNT_1_BIT;
+		create_info.mipLevels     = 1;
+		create_info.arrayLayers   = 1;
+		create_info.extent.width  = width;
+		create_info.extent.height = height;
+		create_info.extent.depth  = 1;
+		create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		VmaAllocationCreateInfo alloc_info{};
+		alloc_info.usage         = VMA_MEMORY_USAGE_AUTO;
+		alloc_info.flags         = 0;
+		alloc_info.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+		VkImage       image{};
+		VmaAllocation allocation{};
+
+		if (VkResult const result{
+		            vmaCreateImage(allocator.get(), &create_info, &alloc_info, &image, &allocation, nullptr)
+		    };
+		    result != VK_SUCCESS) {
+			throw VkException{"Could not create image", result};
+		}
+
+		UniqueVkImage unique_image{image, VkImageDestroyer{allocator.get(), allocation}};
+
+		return Image{std::move(unique_image), device_.get(), format};
 	}
 }// namespace raytracing::vulkan

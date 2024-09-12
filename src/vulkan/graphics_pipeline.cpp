@@ -5,6 +5,8 @@
 #include "src/vulkan/swapchain.h"
 #include "src/vulkan/vk_exception.h"
 #include <array>
+#include <cstddef>
+#include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
@@ -54,19 +56,15 @@ namespace raytracing::vulkan {
 		    dynamic_state.dynamicStateCount = dynamic_states.size();
 		    dynamic_state.pDynamicStates    = dynamic_states.data();
 
-		    VkVertexInputAttributeDescription vert_attr_desc{};
-		    vert_attr_desc.binding  = 0;
-		    vert_attr_desc.location = 0;
-		    vert_attr_desc.format   = VK_FORMAT_R32G32B32_SFLOAT;
-		    vert_attr_desc.offset   = offsetof(Vertex, pos);
+		    std::vector<VkVertexInputAttributeDescription> attr_descs{};
+		    attr_descs.reserve(5);
+		    attr_descs.emplace_back(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, pos));
+		    attr_descs.emplace_back(1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, norm));
+		    attr_descs.emplace_back(2, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv));
 
-		    std::vector<VkVertexInputAttributeDescription> attr_descs(5);
-		    attr_descs[0] = vert_attr_desc;
+		    std::size_t mat4_start{attr_descs.size()};
 		    for (int i{}; i < sizeof(glm::mat4) / sizeof(glm::vec4); ++i) {
-			    attr_descs[1 + i].binding  = 1;
-			    attr_descs[1 + i].location = 1 + i;
-			    attr_descs[1 + i].format   = VK_FORMAT_R32G32B32A32_SFLOAT;
-			    attr_descs[1 + i].offset   = sizeof(glm::vec4) * i;
+			    attr_descs.emplace_back(mat4_start + i, 1, VK_FORMAT_R32G32B32A32_SFLOAT, sizeof(glm::vec4) * i);
 		    }
 
 		    VkVertexInputBindingDescription vert_binding_description{};
@@ -144,6 +142,15 @@ namespace raytracing::vulkan {
 		    color_blending.attachmentCount = 1;
 		    color_blending.pAttachments    = &color_blend_attachment;
 
+		    VkPipelineDepthStencilStateCreateInfo depth_stencil{
+		            VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
+		    };
+		    depth_stencil.depthTestEnable       = VK_TRUE;
+		    depth_stencil.depthWriteEnable      = VK_TRUE;
+		    depth_stencil.depthCompareOp        = VK_COMPARE_OP_LESS;
+		    depth_stencil.depthBoundsTestEnable = VK_FALSE;
+		    depth_stencil.stencilTestEnable     = VK_FALSE;
+
 		    std::vector<VkPipelineShaderStageCreateInfo> const shader_stages{
 		            vert_shader_module_.create_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT),
 		            frag_shader_module_.create_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT)
@@ -156,7 +163,7 @@ namespace raytracing::vulkan {
 		    pipeline_info.pViewportState      = &viewport_state;
 		    pipeline_info.pRasterizationState = &rasterizer;
 		    pipeline_info.pMultisampleState   = &multisampling;
-		    pipeline_info.pDepthStencilState  = nullptr;
+		    pipeline_info.pDepthStencilState  = &depth_stencil;
 		    pipeline_info.pColorBlendState    = &color_blending;
 		    pipeline_info.pDynamicState       = &dynamic_state;
 

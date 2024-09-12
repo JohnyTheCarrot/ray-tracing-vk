@@ -35,44 +35,60 @@ namespace raytracing::vulkan {
 		vkDestroyRenderPass(device_, render_pass, nullptr);
 	}
 
-	RenderPass::RenderPass(LogicalDevice const &device, Swapchain const &swapchain)
+	RenderPass::RenderPass(Allocator const &allocator, LogicalDevice const &device, Swapchain const &swapchain)
 	    : render_pass_{[&] {
 		    VkAttachmentDescription color_attachment{};
-		    color_attachment.format  = swapchain.get().image_format;
-		    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		    color_attachment.loadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-
+		    color_attachment.format         = swapchain.get().image_format;
+		    color_attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+		    color_attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		    color_attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
 		    color_attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		    color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
-		    color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		    color_attachment.finalLayout   = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		    color_attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+		    color_attachment.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 		    VkAttachmentReference color_attachment_ref{};
 		    color_attachment_ref.attachment = 0;
 		    color_attachment_ref.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+		    VkAttachmentDescription depth_attachment{};
+		    depth_attachment.format         = VK_FORMAT_D32_SFLOAT;
+		    depth_attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+		    depth_attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		    depth_attachment.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		    depth_attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		    depth_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		    depth_attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+		    depth_attachment.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		    VkAttachmentReference depth_attachment_ref{};
+		    depth_attachment_ref.attachment = 1;
+		    depth_attachment_ref.layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 		    VkSubpassDescription subpass{};
 		    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-		    subpass.colorAttachmentCount = 1;
-		    subpass.pColorAttachments    = &color_attachment_ref;
+		    subpass.colorAttachmentCount    = 1;
+		    subpass.pColorAttachments       = &color_attachment_ref;
+		    subpass.pDepthStencilAttachment = &depth_attachment_ref;
 
+		    std::array const       attachments{color_attachment, depth_attachment};
 		    VkRenderPassCreateInfo render_pass_info{};
 		    render_pass_info.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-		    render_pass_info.attachmentCount = 1;
-		    render_pass_info.pAttachments    = &color_attachment;
+		    render_pass_info.attachmentCount = attachments.size();
+		    render_pass_info.pAttachments    = attachments.data();
 		    render_pass_info.subpassCount    = 1;
 		    render_pass_info.pSubpasses      = &subpass;
 
 		    VkSubpassDependency dep{};
-		    dep.srcSubpass    = VK_SUBPASS_EXTERNAL;
-		    dep.dstSubpass    = 0;
-		    dep.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		    dep.srcSubpass = VK_SUBPASS_EXTERNAL;
+		    dep.dstSubpass = 0;
+		    dep.srcStageMask =
+		            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 		    dep.srcAccessMask = 0;
-		    dep.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-		    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		    dep.dstStageMask =
+		            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
 		    render_pass_info.dependencyCount = 1;
 		    render_pass_info.pDependencies   = &dep;
@@ -84,7 +100,12 @@ namespace raytracing::vulkan {
 		    }
 
 		    return UniqueVkRenderPass{render_pass, VkRenderPassDestroyer{device.get()}};
-	    }()} {
+	    }()}
+	    , depth_buffer_{device.create_image(
+	              allocator, swapchain.get().extent.width, swapchain.get().extent.height, VK_FORMAT_D32_SFLOAT,
+	              VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+	      )}
+	    , depth_buffer_view_{depth_buffer_.create_image_view(VK_IMAGE_ASPECT_DEPTH_BIT)} {
 		auto const &image_views{swapchain.get_views()};
 
 		framebuffers_.reserve(image_views.size());
@@ -92,12 +113,12 @@ namespace raytracing::vulkan {
 		std::transform(
 		        image_views.cbegin(), image_views.cend(), std::back_inserter(framebuffers_),
 		        [&](UniqueVkImageView const &image_view) {
-			        auto const attachment{image_view.get()};
+			        std::array const attachments{image_view.get(), depth_buffer_view_.get()};
 
 			        VkFramebufferCreateInfo framebuffer_create_info{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
 			        framebuffer_create_info.renderPass      = render_pass_.get();
-			        framebuffer_create_info.attachmentCount = 1;
-			        framebuffer_create_info.pAttachments    = &attachment;
+			        framebuffer_create_info.attachmentCount = attachments.size();
+			        framebuffer_create_info.pAttachments    = attachments.data();
 			        framebuffer_create_info.width           = swapchain.get().extent.width;
 			        framebuffer_create_info.height          = swapchain.get().extent.height;
 			        framebuffer_create_info.layers          = 1;
@@ -144,9 +165,9 @@ namespace raytracing::vulkan {
 		render_pass_info.renderArea.offset = {0, 0};
 		render_pass_info.renderArea.extent = swapchain_extent;
 
-		VkClearValue clear_color{{{0.f, 0.f, 0.f, 1.f}}};
-		render_pass_info.clearValueCount = 1;
-		render_pass_info.pClearValues    = &clear_color;
+		std::array clear_values{VkClearValue{.color = {0.f, 0.f, 0.f, 1.f}}, VkClearValue{.depthStencil = {1.f, 0}}};
+		render_pass_info.clearValueCount = clear_values.size();
+		render_pass_info.pClearValues    = clear_values.data();
 
 		vkCmdBeginRenderPass(command_buffer.get(), &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -305,7 +326,7 @@ namespace raytracing::vulkan {
 	RenderPassController::RenderPassController(
 	        LogicalDevice const &device, Allocator const &allocator, Swapchain const &swapchain
 	)
-	    : render_pass_{device, swapchain}
+	    : render_pass_{allocator, device, swapchain}
 	    , command_buffer_manager_{device, swapchain.get().extent}
 	    , synchronization_manager_{device}
 	    , queue_manager_{device}

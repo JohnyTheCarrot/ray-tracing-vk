@@ -9,6 +9,7 @@
 #include "src/vulkan/descriptor_set_layout.h"
 #include "src/vulkan/fence.h"
 #include "src/vulkan/frame_buffer.h"
+#include "src/vulkan/image.h"
 #include "src/vulkan/semaphore.h"
 #include <array>
 #include <cstdint>
@@ -40,13 +41,15 @@ namespace raytracing::vulkan {
 
 	class RenderPass final {
 		UniqueVkRenderPass               render_pass_;
+		Image                            depth_buffer_;
+		UniqueVkImageView                depth_buffer_view_;
 		std::vector<UniqueVkFramebuffer> framebuffers_;
 		VkExtent2D                       swapchain_extent_;
 		Swapchain const                 *swapchain_;
 		LogicalDevice const             *logical_device_;
 
 	public:
-		RenderPass(LogicalDevice const &device, Swapchain const &swapchain);
+		RenderPass(Allocator const &allocator, LogicalDevice const &device, Swapchain const &swapchain);
 
 		[[nodiscard]]
 		VkRenderPass get() const;
