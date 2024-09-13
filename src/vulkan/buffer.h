@@ -12,6 +12,8 @@
 namespace raytracing::vulkan {
 	class CommandPool;
 
+	class Image;
+
 	class BufferDestroyer final {
 		VmaAllocator  allocator_;
 		VmaAllocation allocation_;
@@ -83,7 +85,9 @@ namespace raytracing::vulkan {
 		[[nodiscard]]
 		VkDeviceSize get_size() const noexcept;
 
-		void copy_to(CommandPool const &command_pool, Buffer &buffer) const;
+		void copy_to(CommandPool const &command_pool, Buffer const &buffer) const;
+
+		void copy_to(CommandPool const &command_pool, Image const &image) const;
 
 		[[nodiscard]]
 		MappedBufferPtr map_memory() const;

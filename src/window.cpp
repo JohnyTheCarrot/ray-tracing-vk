@@ -52,12 +52,13 @@ namespace raytracing {
 	void Window::poll_events() const {
 		glfwPollEvents();
 
-		constexpr float speed{1.f};
-		constexpr float rotate_speed{0.05f};
+		constexpr float speed{150.f};
+		constexpr float rotate_speed{10.0f};
 		static auto     startTime = std::chrono::high_resolution_clock::now();
 
 		auto  currentTime = std::chrono::high_resolution_clock::now();
 		float time        = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+		startTime         = currentTime;
 
 		Camera &cam{Camera::get_instance()};
 		if (glfwGetKey(window_.get(), GLFW_KEY_W)) {

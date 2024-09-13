@@ -10,6 +10,7 @@
 #include "src/vulkan/fence.h"
 #include "src/vulkan/frame_buffer.h"
 #include "src/vulkan/image.h"
+#include "src/vulkan/image_view.h"
 #include "src/vulkan/semaphore.h"
 #include <array>
 #include <cstdint>
@@ -67,6 +68,9 @@ namespace raytracing::vulkan {
 	public:
 		CommandBufferManager(LogicalDevice const &device, VkExtent2D extent);
 
+		[[nodiscard]]
+		CommandPool const &get_pool() const;
+
 		void submit(std::uint32_t image_idx, VkFence fence, VkSemaphore wait, VkSemaphore signal) const;
 
 		// TODO: this method has an awful lot of parameters...
@@ -121,9 +125,12 @@ namespace raytracing::vulkan {
 		std::array<VkDescriptorSet, constants::max_frames_in_flight> desc_sets_;
 		std::array<Buffer, constants::max_frames_in_flight>          uniform_buffers_;
 		std::array<MappedBufferPtr, constants::max_frames_in_flight> uniform_buffers_mapped_;
+		Image                                                        splorge_image_;
+		UniqueVkImageView                                            splorge_image_view_;
+		UniqueVkSampler                                              splorge_sampler_;
 
 	public:
-		DescriptorSetManager(LogicalDevice const &device, Allocator const &allocator);
+		DescriptorSetManager(CommandPool const &command_pool, LogicalDevice const &device, Allocator const &allocator);
 
 		void update(VkExtent2D swapchain_extent, std::uint32_t current_frame) const;
 

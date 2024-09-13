@@ -24,19 +24,44 @@ namespace raytracing::vulkan {
 
 	using UniqueVkImage = std::unique_ptr<VkImage_T, VkImageDestroyer>;
 
+	class VkSamplerDestroyer final {
+		VkDevice device_;
+
+	public:
+		explicit VkSamplerDestroyer(VkDevice device);
+
+		void operator()(VkSampler sampler) const;
+	};
+
+	using UniqueVkSampler = std::unique_ptr<VkSampler_T, VkSamplerDestroyer>;
+
+	class CommandPool;
+
 	class Image final {
 		UniqueVkImage image_;
 		VkDevice      device_;
 		VkFormat      format_;
+		VkExtent2D    extent_;
 
 	public:
-		Image(UniqueVkImage &&image, VkDevice device, VkFormat format);
+		Image(UniqueVkImage &&image, std::uint32_t width, std::uint32_t height, VkDevice device, VkFormat format);
 
 		[[nodiscard]]
 		VkImage get() const;
 
 		[[nodiscard]]
 		UniqueVkImageView create_image_view(VkImageAspectFlags aspect_flags) const;
+
+		[[nodiscard]]
+		UniqueVkSampler create_sampler() const;
+
+		[[nodiscard]]
+		VkExtent2D get_extent() const;
+
+		void transition_layout(
+		        CommandPool const &command_pool, VkImageLayout old_layout, VkImageLayout new_layout,
+		        VkImageAspectFlags aspect_flags
+		) const;
 	};
 }// namespace raytracing::vulkan
 

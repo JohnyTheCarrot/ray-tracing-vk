@@ -1,7 +1,10 @@
 #include "logical_device.h"
 #include "allocator.h"
+#include "buffer.h"
+#include "external/stb_image.h"
 #include "phys_device.h"
 #include "src/vulkan/image.h"
+#include "src/vulkan/vkb_raii.h"
 #include "vk_exception.h"
 #include <format>
 #include <vulkan/vulkan_core.h>
@@ -145,6 +148,52 @@ namespace raytracing::vulkan {
 
 		UniqueVkImage unique_image{image, VkImageDestroyer{allocator.get(), allocation}};
 
-		return Image{std::move(unique_image), device_.get(), format};
+		return Image{std::move(unique_image), width, height, device_.get(), format};
+	}
+
+	class StbiImageDestroyer final {
+	public:
+		void operator()(stbi_uc *pixels) const {
+			stbi_image_free(pixels);
+		}
+	};
+
+	Image LogicalDevice::create_image(
+	        CommandPool const &command_pool, std::filesystem::path const &path, Allocator const &allocator,
+	        VkFormat format, VkImageUsageFlags usage_flags
+	) const {
+		int                                          width, height, texChannels;
+		std::unique_ptr<stbi_uc, StbiImageDestroyer> pixels{
+		        stbi_load(path.c_str(), &width, &height, &texChannels, STBI_rgb_alpha)
+		};
+		std::size_t const size{static_cast<std::size_t>(width * height * 4)};
+
+		Image image{create_image(
+		        allocator, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), format,
+		        VK_IMAGE_USAGE_TRANSFER_DST_BIT | usage_flags
+		)};
+
+		Buffer staging_buffer{
+		        device_.get().device,
+		        allocator.get(),
+		        std::span{pixels.get(), size},
+		        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+		        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		};
+
+		auto const mem{staging_buffer.map_memory()};
+		memcpy(mem.get_mapped_ptr(), pixels.get(), size);
+		image.transition_layout(
+		        command_pool, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
+		);
+
+		staging_buffer.copy_to(command_pool, image);
+		image.transition_layout(
+		        command_pool, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		        VK_IMAGE_ASPECT_COLOR_BIT
+		);
+
+		return image;
 	}
 }// namespace raytracing::vulkan

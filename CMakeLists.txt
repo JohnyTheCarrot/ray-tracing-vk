@@ -110,6 +110,8 @@ set(SOURCE_FILES
         src/mesh.cpp
         src/scene.h
         src/scene.cpp
+        external/stb_image.h
+        external/stb_image.cpp
 )
 
 foreach (GLSL ${GLSL_SOURCE_FILES})

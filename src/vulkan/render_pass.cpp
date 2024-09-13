@@ -149,6 +149,10 @@ namespace raytracing::vulkan {
 	    , command_buffers_{command_pool_.allocate_command_buffers(constants::max_frames_in_flight)} {
 	}
 
+	CommandPool const &CommandBufferManager::get_pool() const {
+		return command_pool_;
+	}
+
 	void CommandBufferManager::record(
 	        std::uint32_t current_frame, std::uint32_t image_idx, VkPipeline pipeline, VkExtent2D swapchain_extent,
 	        RenderPass const &render_pass, VkDescriptorSet desc_set, VkPipelineLayout pipeline_layout,
@@ -265,9 +269,17 @@ namespace raytracing::vulkan {
 	        .pImmutableSamplers = VK_NULL_HANDLE
 	};
 
-	std::vector const bindings{ubo_layout_binding};
+	constexpr VkDescriptorSetLayoutBinding sampler_layout_binding{
+	        .binding            = 1,
+	        .descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+	        .descriptorCount    = 1,
+	        .stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT,
+	        .pImmutableSamplers = VK_NULL_HANDLE
+	};
 
-	DescriptorSetManager::DescriptorSetManager(LogicalDevice const &device, Allocator const &allocator)
+	std::vector const bindings{ubo_layout_binding, sampler_layout_binding};
+
+	DescriptorSetManager::DescriptorSetManager(CommandPool const &command_pool, LogicalDevice const &device, Allocator const &allocator)
 	    : desc_pool_{device.get(), bindings, constants::max_frames_in_flight}
 	    , desc_set_layout_{device.create_descriptor_set_layout({}, std::span{bindings})}
 	    , desc_sets_{desc_pool_.create_descriptor_set(desc_set_layout_.get()), desc_pool_.create_descriptor_set(desc_set_layout_.get())} 
@@ -277,23 +289,42 @@ namespace raytracing::vulkan {
 	              Buffer{device.get().device, allocator.get(), sizeof(UniformBufferObject),
 	                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT}
 	      }
-	, uniform_buffers_mapped_{uniform_buffers_[0].map_memory(), uniform_buffers_[1].map_memory()} {
+	, uniform_buffers_mapped_{uniform_buffers_[0].map_memory(), uniform_buffers_[1].map_memory()}
+	, splorge_image_{device.create_image(command_pool, "resources/textures/splorgert_porgert.jpg",allocator, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT)}
+	, splorge_image_view_{splorge_image_.create_image_view(VK_IMAGE_ASPECT_COLOR_BIT)}
+	, splorge_sampler_{splorge_image_.create_sampler()} {
 		for (int i{}; i < constants::max_frames_in_flight; ++i) {
 			VkDescriptorBufferInfo buffer_info{};
 			buffer_info.buffer = uniform_buffers_[i].get();
 			buffer_info.offset = 0;
 			buffer_info.range  = sizeof(UniformBufferObject);
 
-			VkWriteDescriptorSet descriptor_write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-			descriptor_write.dstSet          = desc_sets_[i];
-			descriptor_write.dstBinding      = 0;
-			descriptor_write.dstArrayElement = 0;
+			VkDescriptorImageInfo image_info{};
+			image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			image_info.imageView   = splorge_image_view_.get();
+			image_info.sampler     = splorge_sampler_.get();
 
-			descriptor_write.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			descriptor_write.descriptorCount = 1;
+			std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
+			descriptor_writes[0] = {
+			        .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			        .dstSet          = desc_sets_[i],
+			        .dstBinding      = 0,
+			        .dstArrayElement = 0,
+			        .descriptorCount = 1,
+			        .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			        .pBufferInfo     = &buffer_info
+			};
+			descriptor_writes[1] = {
+			        .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			        .dstSet          = desc_sets_[i],
+			        .dstBinding      = 1,
+			        .dstArrayElement = 0,
+			        .descriptorCount = 1,
+			        .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			        .pImageInfo      = &image_info
+			};
 
-			descriptor_write.pBufferInfo = &buffer_info;
-			vkUpdateDescriptorSets(device.get(), 1, &descriptor_write, 0, nullptr);
+			vkUpdateDescriptorSets(device.get(), descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 		}
 	}
 
@@ -330,7 +361,7 @@ namespace raytracing::vulkan {
 	    , command_buffer_manager_{device, swapchain.get().extent}
 	    , synchronization_manager_{device}
 	    , queue_manager_{device}
-	    , desc_set_manager_{device, allocator}
+	    , desc_set_manager_{command_buffer_manager_.get_pool(), device, allocator}
 	    , device_{&device}
 	    , swapchain_{&swapchain} {
 	}

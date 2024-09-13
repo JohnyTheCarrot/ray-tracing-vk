@@ -8,11 +8,14 @@
 #include "src/vulkan/semaphore.h"
 #include "vkb_raii.h"
 #include <cstdint>
+#include <filesystem>
 #include <span>
 #include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
 	class PhysicalDevice;
+
+	class CommandPool;
 
 	class Allocator;
 
@@ -59,6 +62,12 @@ namespace raytracing::vulkan {
 		Image create_image(
 		        Allocator const &allocator, std::uint32_t width, std::uint32_t height, VkFormat format,
 		        VkImageUsageFlags usage_flags
+		) const;
+
+		[[nodiscard]]
+		Image create_image(
+		        CommandPool const &command_pool, std::filesystem::path const &path, Allocator const &allocator,
+		        VkFormat format, VkImageUsageFlags usage_flags
 		) const;
 	};
 }// namespace raytracing::vulkan

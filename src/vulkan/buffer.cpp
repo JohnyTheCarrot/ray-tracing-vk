@@ -1,6 +1,7 @@
 #include "buffer.h"
 #include "command_buffer.h"
 #include "command_pool.h"
+#include "image.h"
 #include "src/vulkan/vk_exception.h"
 #include <optional>
 #include <vulkan/vulkan_core.h>
@@ -91,7 +92,7 @@ namespace raytracing::vulkan {
 		return buffer_.get();
 	}
 
-	void Buffer::copy_to(CommandPool const &command_pool, Buffer &buffer) const {
+	void Buffer::copy_to(CommandPool const &command_pool, Buffer const &buffer) const {
 		VkBufferCopy copy_region{};
 		copy_region.srcOffset = 0;
 		copy_region.dstOffset = 0;
@@ -100,6 +101,27 @@ namespace raytracing::vulkan {
 		auto const command_buffer{command_pool.allocate_command_buffer()};
 		command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 		vkCmdCopyBuffer(command_buffer.get(), buffer_.get(), buffer.get(), 1, &copy_region);
+		command_buffer.end();
+		command_buffer.submit_and_wait(VK_NULL_HANDLE);
+	}
+
+	void Buffer::copy_to(CommandPool const &command_pool, Image const &image) const {
+		VkBufferImageCopy copy_region{};
+		copy_region.bufferOffset                    = 0;
+		copy_region.bufferRowLength                 = 0;
+		copy_region.bufferImageHeight               = 0;
+		copy_region.imageSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+		copy_region.imageSubresource.mipLevel       = 0;
+		copy_region.imageSubresource.baseArrayLayer = 0;
+		copy_region.imageSubresource.layerCount     = 1;
+		copy_region.imageOffset                     = {0, 0};
+		copy_region.imageExtent                     = {image.get_extent().width, image.get_extent().height, 1};
+
+		auto const command_buffer{command_pool.allocate_command_buffer()};
+		command_buffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+		vkCmdCopyBufferToImage(
+		        command_buffer.get(), buffer_.get(), image.get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy_region
+		);
 		command_buffer.end();
 		command_buffer.submit_and_wait(VK_NULL_HANDLE);
 	}

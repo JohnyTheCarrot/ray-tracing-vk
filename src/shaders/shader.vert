@@ -12,6 +12,8 @@ layout(location = 2) in vec2 uv;
 layout(location = 3) in mat4 instanceModelMat;
 
 layout(location = 0) out vec3 fragColor;
+layout(location = 1) out vec2 fragUv;
+layout(binding = 1) uniform sampler2D texSampler;
 
 void main() {
     gl_Position = ubo.proj * ubo.view * instanceModelMat * vec4(inPosition, 1.0);
@@ -34,5 +36,6 @@ void main() {
 
     // Set the fragment color to a grayscale value
     fragColor = vec3(intensity);
-    // fragColor = abs(norm);
+    fragUv = uv;
+    // fragColor = vec3(texture(texSampler, uv));
 }
