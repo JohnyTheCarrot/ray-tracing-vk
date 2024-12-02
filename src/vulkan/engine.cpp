@@ -17,8 +17,16 @@ namespace raytracing::vulkan {
 	    , device_manager_{core_.create_device_manager()}
 	    , swapchain_{device_manager_.get_logical()}
 	    , rasterizer_{device_manager_.get_logical(), device_manager_.get_allocator(), swapchain_}
-	    , scene_{device_manager_.get_logical(), device_manager_.get_command_pool(),
-	             device_manager_.get_allocator().get(), "resources/maps/p2-map.glb", GltfScene{}} {
+	    , scene_{device_manager_.get_logical(), device_manager_.get_command_pool(), device_manager_.get_allocator(),
+	             "resources/maps/p2-map.glb", GltfScene{}}
+	    , image_{device_manager_.get_logical().create_image(
+	              device_manager_.get_command_pool(), "resources/textures/splorgert_porgert.jpg",
+	              device_manager_.get_allocator(), VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT
+	      )}
+	    , view_{image_.create_image_view(VK_IMAGE_ASPECT_COLOR_BIT)}
+	    , sampler_{image_.create_sampler()} {
+		/*rasterizer_.submit_textures(device_manager_.get_logical(), {{view_.get(), sampler_.get()}});*/
+		rasterizer_.submit_textures(device_manager_.get_logical(), scene_.get_texture_pairs());
 	}
 
 	DeviceManager const &Engine::get_device_manager() const {
@@ -30,12 +38,18 @@ namespace raytracing::vulkan {
 		auto const &command_pool{device_manager_.get_command_pool()};
 		auto const &allocator{device_manager_.get_allocator()};
 
-		switch (format) {
-			case SceneFormat::Gltf:
-				return Scene{device, command_pool, allocator.get(), path, GltfScene{}};
-		};
+		Scene scene{[&] {
+			switch (format) {
+				case SceneFormat::Gltf:
+					return Scene{device, command_pool, allocator, path, GltfScene{}};
+			}
 
-		throw std::runtime_error{"Invalid format"};
+			throw std::runtime_error{"Invalid format"};
+		}()};
+
+		rasterizer_.submit_textures(device_manager_.get_logical(), scene.get_texture_pairs());
+
+		return scene;
 	}
 
 	void Engine::main_loop() {

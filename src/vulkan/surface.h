@@ -35,7 +35,7 @@ namespace raytracing::vulkan {
 		Surface(vkb::Instance &instance, VkSurfaceKHR surface);
 
 		[[nodiscard]]
-		PhysicalDevice select_physical_device();
+		PhysicalDevice select_physical_device() const;
 	};
 }// namespace raytracing::vulkan
 

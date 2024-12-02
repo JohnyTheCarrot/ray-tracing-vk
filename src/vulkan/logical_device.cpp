@@ -159,15 +159,9 @@ namespace raytracing::vulkan {
 	};
 
 	Image LogicalDevice::create_image(
-	        CommandPool const &command_pool, std::filesystem::path const &path, Allocator const &allocator,
-	        VkFormat format, VkImageUsageFlags usage_flags
+	        CommandPool const &command_pool, std::span<std::byte const> pixels, std::uint32_t width,
+	        std::uint32_t height, Allocator const &allocator, VkFormat format, VkImageUsageFlags usage_flags
 	) const {
-		int                                          width, height, texChannels;
-		std::unique_ptr<stbi_uc, StbiImageDestroyer> pixels{
-		        stbi_load(path.c_str(), &width, &height, &texChannels, STBI_rgb_alpha)
-		};
-		std::size_t const size{static_cast<std::size_t>(width * height * 4)};
-
 		Image image{create_image(
 		        allocator, static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height), format,
 		        VK_IMAGE_USAGE_TRANSFER_DST_BIT | usage_flags
@@ -176,14 +170,14 @@ namespace raytracing::vulkan {
 		Buffer staging_buffer{
 		        device_.get().device,
 		        allocator.get(),
-		        std::span{pixels.get(), size},
+		        pixels,
 		        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
 		        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		};
 
 		auto const mem{staging_buffer.map_memory()};
-		memcpy(mem.get_mapped_ptr(), pixels.get(), size);
+		memcpy(mem.get_mapped_ptr(), pixels.data(), pixels.size());
 		image.transition_layout(
 		        command_pool, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT
 		);
@@ -195,5 +189,21 @@ namespace raytracing::vulkan {
 		);
 
 		return image;
+	}
+
+	Image LogicalDevice::create_image(
+	        CommandPool const &command_pool, std::filesystem::path const &path, Allocator const &allocator,
+	        VkFormat format, VkImageUsageFlags usage_flags
+	) const {
+		int                                          width, height, texChannels;
+		std::unique_ptr<stbi_uc, StbiImageDestroyer> pixels{
+		        stbi_load(path.c_str(), &width, &height, &texChannels, STBI_rgb_alpha)
+		};
+		std::size_t const size{static_cast<std::size_t>(width * height * 4)};
+
+		return create_image(
+		        command_pool, {reinterpret_cast<std::byte const *>(pixels.get()), size}, width, height, allocator,
+		        format, usage_flags
+		);
 	}
 }// namespace raytracing::vulkan

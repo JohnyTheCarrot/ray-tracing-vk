@@ -7,6 +7,7 @@
 #include "src/vulkan/image.h"
 #include "src/vulkan/semaphore.h"
 #include "vkb_raii.h"
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <span>
@@ -62,6 +63,12 @@ namespace raytracing::vulkan {
 		Image create_image(
 		        Allocator const &allocator, std::uint32_t width, std::uint32_t height, VkFormat format,
 		        VkImageUsageFlags usage_flags
+		) const;
+
+		[[nodiscard]]
+		Image create_image(
+		        CommandPool const &command_pool, std::span<std::byte const> pixels, std::uint32_t width,
+		        std::uint32_t height, Allocator const &allocator, VkFormat format, VkImageUsageFlags usage_flags
 		) const;
 
 		[[nodiscard]]

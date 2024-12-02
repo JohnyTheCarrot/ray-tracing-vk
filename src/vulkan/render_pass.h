@@ -119,20 +119,21 @@ namespace raytracing::vulkan {
 
 	class Allocator;
 
+	using DescTexture = std::pair<VkImageView, VkSampler>;
+
 	class DescriptorSetManager final {
 		DescriptorPool                                               desc_pool_;
 		UniqueVkDescriptorSetLayout                                  desc_set_layout_;
 		std::array<VkDescriptorSet, constants::max_frames_in_flight> desc_sets_;
 		std::array<Buffer, constants::max_frames_in_flight>          uniform_buffers_;
 		std::array<MappedBufferPtr, constants::max_frames_in_flight> uniform_buffers_mapped_;
-		Image                                                        splorge_image_;
-		UniqueVkImageView                                            splorge_image_view_;
-		UniqueVkSampler                                              splorge_sampler_;
 
 	public:
 		DescriptorSetManager(CommandPool const &command_pool, LogicalDevice const &device, Allocator const &allocator);
 
 		void update(VkExtent2D swapchain_extent, std::uint32_t current_frame) const;
+
+		void update_sets(LogicalDevice const &device, std::vector<DescTexture> const &textures) const;
 
 		[[nodiscard]]
 		VkDescriptorSetLayout get_layout() const;

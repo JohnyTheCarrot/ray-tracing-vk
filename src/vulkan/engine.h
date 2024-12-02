@@ -17,9 +17,12 @@ namespace raytracing::vulkan {
 		VulkanCore    core_;
 		DeviceManager device_manager_;
 
-		Swapchain        swapchain_;
-		GraphicsPipeline rasterizer_;
-		Scene            scene_;
+		Swapchain         swapchain_;
+		GraphicsPipeline  rasterizer_;
+		Scene             scene_;
+		Image             image_;
+		UniqueVkImageView view_;
+		UniqueVkSampler   sampler_;
 
 	public:
 		explicit Engine(std::string_view app_name);

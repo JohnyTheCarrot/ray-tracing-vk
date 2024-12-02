@@ -269,42 +269,59 @@ namespace raytracing::vulkan {
 	        .pImmutableSamplers = VK_NULL_HANDLE
 	};
 
+	constexpr std::uint32_t                max_descriptor_count{512};
 	constexpr VkDescriptorSetLayoutBinding sampler_layout_binding{
 	        .binding            = 1,
 	        .descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-	        .descriptorCount    = 1,
+	        .descriptorCount    = max_descriptor_count,
 	        .stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT,
-	        .pImmutableSamplers = VK_NULL_HANDLE
+	        .pImmutableSamplers = VK_NULL_HANDLE,
+	};
+
+	constexpr VkDescriptorBindingFlags binding_flags{
+	        VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT
 	};
 
 	std::vector const bindings{ubo_layout_binding, sampler_layout_binding};
 
 	DescriptorSetManager::DescriptorSetManager(CommandPool const &command_pool, LogicalDevice const &device, Allocator const &allocator)
-	    : desc_pool_{device.get(), bindings, constants::max_frames_in_flight}
-	    , desc_set_layout_{device.create_descriptor_set_layout({}, std::span{bindings})}
-	    , desc_sets_{desc_pool_.create_descriptor_set(desc_set_layout_.get()), desc_pool_.create_descriptor_set(desc_set_layout_.get())} 
+	    : desc_pool_{device.get(), bindings, constants::max_frames_in_flight, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT_EXT}
+	    , desc_set_layout_{device.create_descriptor_set_layout({0, binding_flags}, std::span{bindings})}
+	    , desc_sets_{[&]{
+		VkDescriptorSetVariableDescriptorCountAllocateInfoEXT variable_count_alloc_info{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT};
+		variable_count_alloc_info.descriptorSetCount = 1;
+		variable_count_alloc_info.pDescriptorCounts = &max_descriptor_count;
+
+		return std::array{desc_pool_.create_descriptor_set(desc_set_layout_.get(), &variable_count_alloc_info), desc_pool_.create_descriptor_set(desc_set_layout_.get(), &variable_count_alloc_info)};
+	      }()} 
 	    , uniform_buffers_{
 	              Buffer{device.get().device, allocator.get(), sizeof(UniformBufferObject),
 	                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT},
 	              Buffer{device.get().device, allocator.get(), sizeof(UniformBufferObject),
 	                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT}
 	      }
-	, uniform_buffers_mapped_{uniform_buffers_[0].map_memory(), uniform_buffers_[1].map_memory()}
-	, splorge_image_{device.create_image(command_pool, "resources/textures/splorgert_porgert.jpg",allocator, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_USAGE_SAMPLED_BIT)}
-	, splorge_image_view_{splorge_image_.create_image_view(VK_IMAGE_ASPECT_COLOR_BIT)}
-	, splorge_sampler_{splorge_image_.create_sampler()} {
+	, uniform_buffers_mapped_{uniform_buffers_[0].map_memory(), uniform_buffers_[1].map_memory()} {
+	}
+
+	void
+	DescriptorSetManager::update_sets(LogicalDevice const &device, std::vector<DescTexture> const &textures) const {
+		std::vector<VkDescriptorImageInfo> image_infos(textures.size());
+		std::ranges::transform(textures, image_infos.begin(), [&](DescTexture const &texture) {
+			VkDescriptorImageInfo image_info{};
+			image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			image_info.imageView   = texture.first;
+			image_info.sampler     = texture.second;
+
+			return image_info;
+		});
+
 		for (int i{}; i < constants::max_frames_in_flight; ++i) {
 			VkDescriptorBufferInfo buffer_info{};
 			buffer_info.buffer = uniform_buffers_[i].get();
 			buffer_info.offset = 0;
 			buffer_info.range  = sizeof(UniformBufferObject);
 
-			VkDescriptorImageInfo image_info{};
-			image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			image_info.imageView   = splorge_image_view_.get();
-			image_info.sampler     = splorge_sampler_.get();
-
-			std::array<VkWriteDescriptorSet, 2> descriptor_writes{};
+			std::vector<VkWriteDescriptorSet> descriptor_writes(max_descriptor_count);
 			descriptor_writes[0] = {
 			        .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 			        .dstSet          = desc_sets_[i],
@@ -314,22 +331,25 @@ namespace raytracing::vulkan {
 			        .descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 			        .pBufferInfo     = &buffer_info
 			};
-			descriptor_writes[1] = {
-			        .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			        .dstSet          = desc_sets_[i],
-			        .dstBinding      = 1,
-			        .dstArrayElement = 0,
-			        .descriptorCount = 1,
-			        .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			        .pImageInfo      = &image_info
-			};
 
-			vkUpdateDescriptorSets(device.get(), descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+			for (std::uint32_t tex_idx{}; tex_idx < image_infos.size(); ++tex_idx) {
+				descriptor_writes[1 + tex_idx] = {
+				        .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				        .dstSet          = desc_sets_[i],
+				        .dstBinding      = 1,
+				        .dstArrayElement = tex_idx,
+				        .descriptorCount = 1,
+				        .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				        .pImageInfo      = &image_infos[tex_idx]
+				};
+			}
+
+			vkUpdateDescriptorSets(device.get(), textures.size() + 1, descriptor_writes.data(), 0, nullptr);
 		}
 	}
 
 	void DescriptorSetManager::update(VkExtent2D swapchain_extent, std::uint32_t current_frame) const {
-		UniformBufferObject ubo{glm::mat4{1.f}, glm::mat4{1.f}};
+		UniformBufferObject ubo{};
 
 		static auto startTime = std::chrono::high_resolution_clock::now();
 

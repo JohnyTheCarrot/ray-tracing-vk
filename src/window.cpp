@@ -26,7 +26,7 @@ namespace raytracing {
 		    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-		    return glfwCreateWindow(width, height, title.data(), nullptr, nullptr);
+		    return glfwCreateWindow(width, height, title.data(), glfwGetPrimaryMonitor(), nullptr);
 	    }()}
 	    , surface_{[this, &instance] {
 		    VkSurfaceKHR surface{};
@@ -52,7 +52,7 @@ namespace raytracing {
 	void Window::poll_events() const {
 		glfwPollEvents();
 
-		constexpr float speed{150.f};
+		constexpr float speed{250.f};
 		constexpr float rotate_speed{10.0f};
 		static auto     startTime = std::chrono::high_resolution_clock::now();
 

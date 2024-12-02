@@ -60,8 +60,8 @@ namespace raytracing::vulkan {
 
 	UniqueVkSampler Image::create_sampler() const {
 		VkSamplerCreateInfo create_info{VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO};
-		create_info.magFilter               = VK_FILTER_NEAREST;
-		create_info.minFilter               = VK_FILTER_NEAREST;
+		create_info.magFilter               = VK_FILTER_LINEAR;
+		create_info.minFilter               = VK_FILTER_LINEAR;
 		create_info.addressModeU            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		create_info.addressModeV            = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		create_info.addressModeW            = VK_SAMPLER_ADDRESS_MODE_REPEAT;

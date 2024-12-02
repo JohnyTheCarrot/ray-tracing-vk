@@ -15,7 +15,8 @@ namespace raytracing::vulkan {
 	}
 
 	DescriptorPool::DescriptorPool(
-	        VkDevice device, std::vector<VkDescriptorSetLayoutBinding> const &bindings, std::uint32_t max_sets
+	        VkDevice device, std::vector<VkDescriptorSetLayoutBinding> const &bindings, std::uint32_t max_sets,
+	        VkDescriptorPoolCreateFlags flags
 	)
 	    : device_{device}
 	    , descriptor_pool_{[&] {
@@ -45,7 +46,7 @@ namespace raytracing::vulkan {
 		    desc_pool_info.maxSets       = max_sets;
 		    desc_pool_info.poolSizeCount = pool_sizes.size();
 		    desc_pool_info.pPoolSizes    = pool_sizes.data();
-		    desc_pool_info.flags         = 0;
+		    desc_pool_info.flags         = flags;
 
 		    VkDescriptorPool descriptor_pool{};
 		    if (VkResult const result{vkCreateDescriptorPool(device, &desc_pool_info, nullptr, &descriptor_pool)};
@@ -57,11 +58,12 @@ namespace raytracing::vulkan {
 	    }()} {
 	}
 
-	VkDescriptorSet DescriptorPool::create_descriptor_set(VkDescriptorSetLayout desc_set_layout) {
+	VkDescriptorSet DescriptorPool::create_descriptor_set(VkDescriptorSetLayout desc_set_layout, void const *next) {
 		VkDescriptorSetAllocateInfo allocate_info{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
 		allocate_info.descriptorPool     = descriptor_pool_.get();
 		allocate_info.descriptorSetCount = 1;
 		allocate_info.pSetLayouts        = &desc_set_layout;
+		allocate_info.pNext              = next;
 
 		VkDescriptorSet desc_set{};
 		if (VkResult const result{vkAllocateDescriptorSets(device_, &allocate_info, &desc_set)}; result != VK_SUCCESS) {

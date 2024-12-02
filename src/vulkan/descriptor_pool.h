@@ -21,10 +21,11 @@ namespace raytracing::vulkan {
 
 	public:
 		DescriptorPool(
-		        VkDevice device, std::vector<VkDescriptorSetLayoutBinding> const &bindings, std::uint32_t max_sets
+		        VkDevice device, std::vector<VkDescriptorSetLayoutBinding> const &bindings, std::uint32_t max_sets,
+		        VkDescriptorPoolCreateFlags flags = 0
 		);
 
 		[[nodiscard]]
-		VkDescriptorSet create_descriptor_set(VkDescriptorSetLayout desc_set_layout);
+		VkDescriptorSet create_descriptor_set(VkDescriptorSetLayout desc_set_layout, void const *next = nullptr);
 	};
 }// namespace raytracing::vulkan

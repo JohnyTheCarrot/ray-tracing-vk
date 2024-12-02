@@ -37,6 +37,8 @@ namespace raytracing::vulkan {
 		GraphicsPipeline(LogicalDevice const &device, Allocator const &allocator, Swapchain const &swapchain);
 
 		void render(Scene const &scene) const;
+
+		void submit_textures(LogicalDevice const &device, std::vector<DescTexture> const &textures);
 	};
 }// namespace raytracing::vulkan
 

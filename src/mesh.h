@@ -21,14 +21,28 @@ namespace raytracing {
 		std::vector<VkAccelerationStructureBuildRangeInfoKHR> acc_structure_build_offset_info;
 	};
 
+	struct Material final {
+		std::uint32_t texture_index_{};
+		bool          is_transparent_{false};
+	};
+
+	struct MeshSurface final {
+		Material      mat_{};
+		std::uint32_t start_index_{};
+		std::uint32_t index_count_{};
+	};
+
 	class Mesh final {
 		vulkan::Buffer                index_buffer_;
 		vulkan::Buffer                vertex_buffer_;
 		std::optional<vulkan::Buffer> instance_buffer_;
+		std::vector<MeshSurface>      opaque_surfaces_;
+		std::vector<MeshSurface>      transparent_surfaces_;
 
 	public:
 		Mesh(VkDevice device, VmaAllocator allocator, vulkan::CommandPool const &command_pool,
-		     std::vector<MeshIndex> const &indices, std::vector<Vertex> const &vertices);
+		     std::vector<MeshIndex> const &indices, std::vector<Vertex> const &vertices,
+		     std::vector<MeshSurface> &&opaque_surfaces, std::vector<MeshSurface> &&transparent_surfaces);
 
 		void set_instances(
 		        VkDevice device, VmaAllocator allocator, vulkan::CommandPool const &command_pool,

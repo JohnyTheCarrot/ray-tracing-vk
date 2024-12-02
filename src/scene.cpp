@@ -1,6 +1,11 @@
 #include "scene.h"
+#include "external/stb_image.h"
+#include "fastgltf/types.hpp"
+#include "fastgltf/util.hpp"
 #include "src/diagnostics.h"
+#include "src/mesh.h"
 #include "src/vulkan/acc_struct.h"
+#include "src/vulkan/allocator.h"
 #include "src/vulkan/buffer.h"
 #include "src/vulkan/command_buffer.h"
 #include "src/vulkan/command_pool.h"
@@ -18,9 +23,127 @@
 #include <glm/matrix.hpp>
 #include <stdexcept>
 #include <unordered_map>
+#include <vma/vk_mem_alloc.h>
 #include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
+	Image Scene::load_image(
+	        CommandPool const &command_pool, LogicalDevice const &device, Allocator const &allocator,
+	        fastgltf::Asset const &asset, fastgltf::Image const &image
+	) {
+		int width, height, num_channels;
+
+		return std::visit(
+		        fastgltf::visitor{
+		                [](auto const &) -> Image { throw std::runtime_error{"image reading method unimplemented"}; },
+		                [](fastgltf::sources::URI const &file_path) -> Image {
+			                throw std::runtime_error{"File path image reading unimplemented"};
+		                },
+		                [&](fastgltf::sources::Vector const &vector) {
+			                stbi_uc *data{stbi_load_from_memory(
+			                        reinterpret_cast<const stbi_uc *>(vector.bytes.data()),
+			                        static_cast<int>(vector.bytes.size()), &width, &height, &num_channels, 4
+			                )};
+
+			                if (!data) {
+				                stbi_image_free(data);
+				                throw std::runtime_error{"data was nullptr when reading from gltf vector"};
+			                }
+
+			                std::span const span{
+			                        reinterpret_cast<std::byte const *>(data), static_cast<size_t>(width * height * 4)
+			                };
+			                auto image = device.create_image(
+			                        command_pool, span, width, height, allocator, VK_FORMAT_R8G8B8A8_SRGB,
+			                        VK_IMAGE_USAGE_SAMPLED_BIT
+			                );
+			                stbi_image_free(data);
+
+			                return image;
+		                },
+		                [&](fastgltf::sources::BufferView const &view) {
+			                auto const &buffer_view{asset.bufferViews[view.bufferViewIndex]};
+			                auto const &buffer{asset.buffers[buffer_view.bufferIndex]};
+
+			                return std::visit(
+			                        fastgltf::visitor{
+			                                [](auto const &arg) -> Image {
+				                                throw std::runtime_error{"buffer view reading method unimplemented"};
+			                                },
+			                                [&](fastgltf::sources::Array const &array) -> Image {
+				                                stbi_uc *data{stbi_load_from_memory(
+				                                        reinterpret_cast<const stbi_uc *>(array.bytes.data()) +
+				                                                buffer_view.byteOffset,
+				                                        static_cast<int>(buffer_view.byteLength), &width, &height,
+				                                        &num_channels, 4
+				                                )};
+
+				                                if (!data) {
+					                                stbi_image_free(data);
+					                                throw std::runtime_error{
+					                                        "data was nullptr when reading from gltf vector"
+					                                };
+				                                }
+
+				                                std::span const span{
+				                                        reinterpret_cast<std::byte const *>(data),
+				                                        static_cast<size_t>(width * height * num_channels)
+				                                };
+				                                auto const format{
+				                                        num_channels == 4 ? VK_FORMAT_R8G8B8A8_SRGB
+				                                                          : VK_FORMAT_R8G8B8_SRGB
+				                                };
+				                                auto image = device.create_image(
+				                                        command_pool, span, width, height, allocator, format,
+				                                        VK_IMAGE_USAGE_SAMPLED_BIT
+				                                );
+
+				                                stbi_image_free(data);
+
+				                                return image;
+			                                },
+			                                [&](fastgltf::sources::Vector const &vector) -> Image {
+				                                stbi_uc *data{stbi_load_from_memory(
+				                                        reinterpret_cast<const stbi_uc *>(vector.bytes.data()) +
+				                                                buffer_view.byteOffset,
+				                                        static_cast<int>(buffer_view.byteLength), &width, &height,
+				                                        &num_channels, 4
+				                                )};
+
+				                                if (!data) {
+					                                stbi_image_free(data);
+					                                throw std::runtime_error{
+					                                        "data was nullptr when reading from gltf vector"
+					                                };
+				                                }
+
+				                                std::span const span{
+				                                        reinterpret_cast<std::byte const *>(data),
+				                                        static_cast<size_t>(width * height * num_channels)
+				                                };
+				                                auto const format{
+				                                        num_channels == 4 ? VK_FORMAT_R8G8B8A8_SRGB
+				                                                          : VK_FORMAT_R8G8B8_SRGB
+				                                };
+
+				                                auto image = device.create_image(
+				                                        command_pool, span, width, height, allocator, format,
+				                                        VK_IMAGE_USAGE_SAMPLED_BIT
+				                                );
+
+				                                stbi_image_free(data);
+
+				                                return image;
+			                                }
+			                        },
+			                        buffer.data
+			                );
+		                }
+		        },
+		        image.data
+		);
+	}
+
 	void Scene::cmd_create_blas(
 	        vulkan::CommandBuffer const &command_buffer, VkDevice device, VkPhysicalDevice phys_device,
 	        VmaAllocator allocator, std::vector<std::uint32_t> const &indices,
@@ -251,7 +374,7 @@ namespace raytracing::vulkan {
 	}
 
 	Scene::Scene(
-	        vulkan::LogicalDevice const &device, vulkan::CommandPool const &command_pool, VmaAllocator allocator,
+	        vulkan::LogicalDevice const &device, vulkan::CommandPool const &command_pool, Allocator const &allocator,
 	        std::filesystem::path const &path, GltfScene
 	) {
 		{
@@ -265,19 +388,51 @@ namespace raytracing::vulkan {
 			throw std::runtime_error{"Couldn't load GLTF/GLB file"};
 		}
 
-		auto asset{parser.loadGltf(data.get(), path.parent_path())};
+		auto asset{parser.loadGltf(
+		        data.get(), path.parent_path(),
+		        fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages
+		)};
 		if (asset.error() != fastgltf::Error::None) {
 			throw std::runtime_error{"Couldn't parse GLTF/GLB file"};
 		}
 
+		textures_.reserve(asset->images.size());
+		for (auto const &image: asset->images) {
+			auto const &vk_image{textures_.emplace_back(load_image(command_pool, device, allocator, asset.get(), image))
+			};
+
+			auto image_view{vk_image.create_image_view(VK_IMAGE_ASPECT_COLOR_BIT)};
+			auto sampler{vk_image.create_sampler()};
+
+			texture_pairs_raw_.emplace_back(image_view.get(), sampler.get());
+			textures_view_sampler_pairs_.emplace_back(std::move(image_view), std::move(sampler));
+		}
+
+		std::vector<Material> materials(asset->materials.size());
+		std::ranges::transform(asset->materials, materials.begin(), [&](fastgltf::Material const &mat) {
+			std::uint32_t tex_idx{0};
+
+			if (mat.pbrData.baseColorTexture.has_value()) {
+				tex_idx = asset->textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
+			}
+
+			return Material{.texture_index_ = tex_idx, .is_transparent_ = mat.alphaMode == fastgltf::AlphaMode::Blend};
+		});
+
+
 		for (auto mesh_idx{0}; mesh_idx < asset->meshes.size(); ++mesh_idx) {
 			auto const &mesh{asset->meshes[mesh_idx]};
 
-			std::vector<MeshIndex> indices{};
-			std::vector<Vertex>    vertices{};
+			std::vector<MeshIndex>   indices{};
+			std::vector<Vertex>      vertices{};
+			std::vector<MeshSurface> opaque_surfaces{};
+			std::vector<MeshSurface> transparent_surfaces{};
 
-			for (auto &&primitive: mesh.primitives) {
-				auto const initial_vertex_idx = vertices.size();
+			for (auto const &primitive: mesh.primitives) {
+				auto const  initial_vertex_idx = vertices.size();
+				MeshSurface surface{};
+				surface.start_index_ = static_cast<std::uint32_t>(indices.size());
+				surface.index_count_ = asset->accessors[primitive.indicesAccessor.value()].count;
 
 				{
 					auto const &index_accessor{asset->accessors[primitive.indicesAccessor.value()]};
@@ -315,13 +470,27 @@ namespace raytracing::vulkan {
 					        [&](glm::vec2 uv, size_t index) { vertices[initial_vertex_idx + index].uv = uv; }
 					);
 				}
+
+				if (primitive.materialIndex.has_value()) {
+					surface.mat_ = materials[primitive.materialIndex.value()];
+				} else {
+					surface.mat_ = materials[0];
+				}
+
+				if (surface.mat_.is_transparent_)
+					transparent_surfaces.emplace_back(surface);
+				else
+					opaque_surfaces.emplace_back(surface);
 			}
 
 			std::string debug_msg{std::format(
 			        "Uploading mesh \"{}\" with {} indices and {} vertices", mesh.name, indices.size(), vertices.size()
 			)};
 			Logger::get_instance().log(LogLevel::Debug, std::move(debug_msg));
-			meshes_.emplace_back(device.get().device, allocator, command_pool, indices, vertices);
+			meshes_.emplace_back(
+			        device.get().device, allocator.get(), command_pool, indices, vertices, std::move(opaque_surfaces),
+			        std::move(transparent_surfaces)
+			);
 		}
 
 		for (auto const &node: asset->nodes) {
@@ -353,6 +522,8 @@ namespace raytracing::vulkan {
 			nodes_.emplace_back(scene_node);
 		}
 
+		for (auto const &texture: asset->images) {}
+
 		for (std::size_t idx{}; idx < asset->nodes.size(); ++idx) {
 			auto       &node{nodes_.at(idx)};
 			auto const &gltf_node{asset->nodes[idx]};
@@ -379,14 +550,18 @@ namespace raytracing::vulkan {
 		}
 
 		for (auto const &[index, mats]: mesh_instances) {
-			meshes_[index].set_instances(device.get().device, allocator, command_pool, mats);
+			meshes_[index].set_instances(device.get().device, allocator.get(), command_pool, mats);
 		}
 
 		Logger::get_instance().log(LogLevel::Debug, "Creating BLAS");
-		blas_ = create_blas(device.get().physical_device, command_pool, allocator, device.get().device);
+		blas_ = create_blas(device.get().physical_device, command_pool, allocator.get(), device.get().device);
 		Logger::get_instance().log(LogLevel::Debug, "BLAS created, creating TLAS");
-		tlas_ = create_tlas(device, allocator, command_pool, blas_, mesh_instances);
+		tlas_ = create_tlas(device, allocator.get(), command_pool, blas_, mesh_instances);
 		Logger::get_instance().log(LogLevel::Debug, "TLAS created");
+	}
+
+	std::vector<std::pair<VkImageView, VkSampler>> const &Scene::get_texture_pairs() const {
+		return texture_pairs_raw_;
 	}
 
 	void Scene::rasterizer_draw(

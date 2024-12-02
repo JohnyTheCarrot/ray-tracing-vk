@@ -25,7 +25,8 @@ namespace raytracing {
 
 	Mesh::Mesh(
 	        VkDevice device, VmaAllocator allocator, vulkan::CommandPool const &command_pool,
-	        std::vector<std::uint32_t> const &indices, std::vector<Vertex> const &vertices
+	        std::vector<std::uint32_t> const &indices, std::vector<Vertex> const &vertices,
+	        std::vector<MeshSurface> &&opaque_surfaces, std::vector<MeshSurface> &&transparent_surfaces
 	)
 	    : index_buffer_{[&] {
 		    std::span<MeshIndex const> span{indices};
@@ -44,7 +45,9 @@ namespace raytracing {
 		    staging_buffer.copy_to(command_pool, device_local_buffer);
 
 		    return device_local_buffer;
-	    }()} {
+	    }()}
+	    , opaque_surfaces_{std::move(opaque_surfaces)}
+	    , transparent_surfaces_{std::move(transparent_surfaces)} {
 	}
 
 	MeshBlasInput Mesh::to_blas_input() const {
@@ -105,8 +108,26 @@ namespace raytracing {
 		vkCmdBindDescriptorSets(
 		        render_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout, 0, 1, &desc_set, 0, nullptr
 		);
+
 		std::uint32_t num_instances{static_cast<std::uint32_t>(instance_buffer_->get_size() / sizeof(glm::mat4))};
 		std::uint32_t num_verts{static_cast<std::uint32_t>(index_buffer_.get_size() / sizeof(MeshIndex))};
-		vkCmdDrawIndexed(render_buffer, num_verts, num_instances, 0, 0, 0);
+
+		for (auto const &surface: opaque_surfaces_) {
+			vkCmdPushConstants(
+			        render_buffer, pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(std::uint32_t),
+			        &surface.mat_.texture_index_
+			);
+
+			vkCmdDrawIndexed(render_buffer, surface.index_count_, num_instances, surface.start_index_, 0, 0);
+		}
+
+		for (auto const &surface: transparent_surfaces_) {
+			vkCmdPushConstants(
+			        render_buffer, pipeline_layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(std::uint32_t),
+			        &surface.mat_.texture_index_
+			);
+
+			vkCmdDrawIndexed(render_buffer, surface.index_count_, num_instances, surface.start_index_, 0, 0);
+		}
 	}
 }// namespace raytracing

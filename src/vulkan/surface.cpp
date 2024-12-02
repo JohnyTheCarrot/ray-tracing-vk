@@ -28,12 +28,14 @@ namespace raytracing::vulkan {
 	    , instance_{&instance} {
 	}
 
-	PhysicalDevice Surface::select_physical_device() {
+	PhysicalDevice Surface::select_physical_device() const {
 		vkb::PhysicalDeviceSelector      phys_device_selector{*instance_};
 		VkPhysicalDeviceVulkan12Features vk12_features{};
-		vk12_features.runtimeDescriptorArray = true;
-		vk12_features.descriptorIndexing     = true;
-		vk12_features.bufferDeviceAddress    = true;
+		vk12_features.runtimeDescriptorArray                   = true;
+		vk12_features.descriptorIndexing                       = true;
+		vk12_features.bufferDeviceAddress                      = true;
+		vk12_features.descriptorBindingVariableDescriptorCount = true;
+		vk12_features.descriptorBindingPartiallyBound          = true;
 
 		VkPhysicalDeviceAccelerationStructureFeaturesKHR accel_feature{
 		        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR
@@ -44,7 +46,7 @@ namespace raytracing::vulkan {
 		vk12_features.pNext = &accel_feature;
 
 		auto device_selector_return = phys_device_selector.set_surface(surface_.get())
-		                                      .prefer_gpu_device_type(vkb::PreferredDeviceType::integrated)
+		                                      .prefer_gpu_device_type(vkb::PreferredDeviceType::discrete)
 		                                      .add_required_extensions(required_extensions)
 		                                      .set_required_features_12(vk12_features)
 		                                      .select();
@@ -53,8 +55,11 @@ namespace raytracing::vulkan {
 			std::string message{
 			        std::format("Failed to select physical device: {}", device_selector_return.error().message())
 			};
-			throw std::runtime_error{std::move(message)};
+			throw std::runtime_error{message};
 		}
+
+		std::string message{std::format("Selected physical device: {}", device_selector_return->properties.deviceName)};
+		Logger::get_instance().log(LogLevel::Info, message);
 
 		return PhysicalDevice{std::move(device_selector_return.value())};
 	}

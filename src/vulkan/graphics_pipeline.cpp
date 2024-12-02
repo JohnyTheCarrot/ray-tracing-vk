@@ -6,7 +6,6 @@
 #include "src/vulkan/vk_exception.h"
 #include <array>
 #include <cstddef>
-#include <stdexcept>
 #include <vulkan/vulkan_core.h>
 
 namespace raytracing::vulkan {
@@ -29,9 +28,9 @@ namespace raytracing::vulkan {
 		    VkPipelineLayoutCreateInfo pipeline_layout_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
 
 		    VkPushConstantRange push_constant_range{};
-		    push_constant_range.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+		    push_constant_range.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 		    push_constant_range.offset     = 0;
-		    push_constant_range.size       = sizeof(glm::mat4);
+		    push_constant_range.size       = sizeof(std::uint32_t);
 
 		    VkDescriptorSetLayout layout{render_pass_.get_desc_set_manager().get_layout()};
 		    pipeline_layout_info.setLayoutCount         = 1;
@@ -185,5 +184,9 @@ namespace raytracing::vulkan {
 
 	void GraphicsPipeline::render(Scene const &scene) const {
 		render_pass_.render(pipeline_.get(), pipeline_layout_.get(), scene);
+	}
+
+	void GraphicsPipeline::submit_textures(LogicalDevice const &device, std::vector<DescTexture> const &textures) {
+		render_pass_.get_desc_set_manager().update_sets(device, textures);
 	}
 }// namespace raytracing::vulkan

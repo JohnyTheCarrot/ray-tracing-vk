@@ -1,8 +1,11 @@
 #ifndef SRC_MODEL_H_
 #define SRC_MODEL_H_
 
+#include "fastgltf/types.hpp"
 #include "src/mesh.h"
 #include "src/vulkan/acc_struct.h"
+#include "src/vulkan/image.h"
+#include "src/vulkan/image_view.h"
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -50,10 +53,19 @@ namespace raytracing::vulkan {
 			std::optional<AccelerationStructure>            acc_;
 		};
 
-		std::vector<Mesh>                       meshes_;
-		std::vector<SceneNode>                  nodes_;
-		std::vector<BuildAccelerationStructure> blas_{};
-		std::optional<AccelerationStructure>    tlas_{};
+		std::vector<Mesh>                                          meshes_;
+		std::vector<SceneNode>                                     nodes_;
+		std::vector<BuildAccelerationStructure>                    blas_{};
+		std::optional<AccelerationStructure>                       tlas_{};
+		std::vector<Image>                                         textures_;
+		std::vector<std::pair<UniqueVkImageView, UniqueVkSampler>> textures_view_sampler_pairs_;
+		std::vector<std::pair<VkImageView, VkSampler>>             texture_pairs_raw_;
+
+		[[nodiscard]]
+		static Image load_image(
+		        CommandPool const &command_pool, LogicalDevice const &device, Allocator const &allocator,
+		        fastgltf::Asset const &asset, fastgltf::Image const &image
+		);
 
 		void cmd_create_blas(
 		        CommandBuffer const &command_buffer, VkDevice device, VkPhysicalDevice phys_device,
@@ -74,8 +86,11 @@ namespace raytracing::vulkan {
 		);
 
 	public:
-		Scene(LogicalDevice const &device, CommandPool const &command_pool, VmaAllocator allocator,
+		Scene(LogicalDevice const &device, CommandPool const &command_pool, Allocator const &allocator,
 		      std::filesystem::path const &path, GltfScene);
+
+		[[nodiscard]]
+		std::vector<std::pair<VkImageView, VkSampler>> const &get_texture_pairs() const;
 
 		void rasterizer_draw(VkCommandBuffer render_buffer, VkPipelineLayout pipeline_layout, VkDescriptorSet desc_set)
 		        const;
